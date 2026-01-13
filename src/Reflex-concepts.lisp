@@ -25,14 +25,15 @@
 
 
 (mot "name" (enumt string))
-(mot "variable name" (uniont "name"))
-(mot "process name" (uniont "name"))
-(mot "state name" (uniont "name"))
-(mot "program name" (uniont "name"))
-(mot "structure name" (uniont "name"))
-(mot "field name" (uniont "name"))
-(mot "enum name" (uniont "name"))
-(mot "port name" (uniont "name"))
+(typedef "variable name" (uniont "name"))
+(typedef "process name" (uniont "name"))
+(typedef "state name" (uniont "name"))
+(typedef "program name" (uniont "name"))
+(typedef "structure name" (uniont "name"))
+(typedef "field name" (uniont "name"))
+(typedef "enum name" (uniont "name"))
+(typedef "port name" (uniont "name"))
+(typedef "node name" (uniont "name"))
 
 
 (mot "undefined type" (enumt 'undefined-int-type 'undefined-float-type))
@@ -137,13 +138,16 @@
 (mot "default statement" :at "statements" "statement list")
 (mot "case statement" :at "label" "integer constant" :at "statements" "statement list" :atv "break" bool nil)
 
+(mot "for statement" :at "init" "expression" :at "condition" "expression" :at "update" "expression" :at "statement" "statement")
+(mot "for decl statement" :at "init" "statement variable declaration" :at "condition" "expression" :at "update" "expression" :at "statement" "statement")
+
 (mot "statement block" :at "statements" "statement list")
 
 (mot "expression statement" :at "expression" "expression")
 
+(typedef "statement variable declaration" (uniont "simple variable declaration" "array variable declaration" "structure variable declaration" "enum variable declaration" "constant declaration"))
 
-
-(mot "statement" (uniont "expression statement" "if statement" "switch statement" "statement block"
+(mot "statement" (uniont "expression statement" "if statement" "switch statement" "statement block" "statement variable declaration"
 "process oriented statement"))
 
 ;(mot "state declaration" :at "name" "state name" :at "statements" "statement list")
@@ -154,12 +158,12 @@
 
 (mot "constant declaration" :at "type" "simple type" :at "name" "variable name" :at "value" "expression")
 
-(mot "simple init" (uniont "expression"))
+(typedef "simple init" (uniont "expression"))
 (mot "simple variable declaration" :at "type" "simple type" :at "name" "variable name" :at "init" "simple init" :atv "shared" bool nil)
-(mot "array init" (uniont (listt "expression")))
+(typedef "expression list" (listt "expression"))
+(typedef "array init" (uniont "expression list"))
 (mot "array variable declaration" :at "type" "array type" :at "name" "variable name" :at "size" int :at "init" "array init" :atv "shared" bool nil)
 
-(mot "variable declaration" (uniont "simple variable declaration" "array variable declaration"))
 (mot "imported variable declaration" :at "name" "variable name" :at "source proc" "process name" :at "source var" "process name")
 
 (mot "physical variable declaration" :at "type" "simple type" :at "name" "variable name" :at "port" "port name" :at "index" int)
@@ -168,14 +172,17 @@
 
 (mot "struct init" (uniont (cot :amap "field name" "reflex init")))
 (mot "structure variable declaration" :at "name" "variable name" :at "type" "structure name" :at "init" "struct init" :atv "shared" bool nil)
+
 (mot "reflex init" (uniont "simple init" "array init" "struct init" "enum element access"))
 
-(mot "process variable declaration" (uniont "constant declaration" "simple variable declaration" "array variable declaration" "physical variable declaration" "imported variable declaration" "enum variable declaration" "structure variable declaration"))
+(mot "process variable declaration" (uniont "statement variable declaration" "physical variable declaration" "imported variable declaration"))
 
 (mot "process declaration" 
-    :at "name" "process name" 
+    :at "name" "process name"
+    :at "node" "node name"
     :at "variables" (listt "process variable declaration")
-    :at "states" (listt "state declaration"))
+    :at "states" (listt "state declaration")
+    :at "active" bool)
 
 
 (mot "structure field declaration" :at "name" "field name" :at "type" "type")
@@ -187,21 +194,21 @@
 (mot "port type" (enumt 'input 'output))
 (mot "port declaration" :at "port type" "port type" :at "name" "port name" :at "addr1" int :at "addr2" int :at "size" int)
 
+(mot "node declaration" :av "name" "node name" :av "clock" "clock" :av "variables" (listt "process variable declaration"))
+
 (mot "program item declaration" :union
   ("port declaration"
-  "constant declaration"
-  "simple variable declaration" 
-  "array variable declaration" 
-  "structure declaration" 
-  "structure variable declaration" 
+  "statement variable declaration"
+  "physical variable declaration"
+  "structure declaration"  
   "enum declaration"
-  "enum variable declaration"
 ))
 
 (mot "clock" (uniont "natural constant" "time constant"))
 (mot "program declaration" 
     :at "name" "program name" 
     :atv "clock" "clock" 100
+    :at "nodes" (listt "node declaration")
     :at "declarations" (listt "program item declaration")
     :at "processes" (listt "process declaration")
 )

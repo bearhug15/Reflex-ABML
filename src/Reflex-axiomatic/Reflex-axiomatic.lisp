@@ -18,10 +18,6 @@
     :atv "clock" int 100
 
     :at "conditions" (listt "vc lemma")
-    :at "conditions printed" int
-    :at "state num" int
-    :at "condition num" int
-    :at "is printed" bool
 
     ; List of compatability rules defined as a list of predicate functions returning nil if list of formulas is not compatable
     :at "crules" (listt (funt any "term" bool))
