@@ -292,8 +292,6 @@
     :do (update-eval-aclosure c "instance" expr)
 )
 
-(mot "for statement" :at "init" "expression" :at "condition" "expression" :at "update" "expression" :at "statement" "statement")
-
 ;Можно ли несолько eval подряд?
 (aclosure c :attribute "map name" :type "for statement" :stage nil 
     :instance i 
@@ -312,7 +310,6 @@
     :ap "variable map" mp 
     :do (aset a "variable map" mp))
 
-(mot "for decl statement" :at "init" "statement variable declaration" :at "condition" "expression" :at "update" "expression" :at "statement" "statement")
 (aclosure c :attribute "map name" :type "for decl statement" :stage nil 
     :instance i 
     :ap i "init" init
