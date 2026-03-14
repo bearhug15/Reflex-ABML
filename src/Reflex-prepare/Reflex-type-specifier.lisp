@@ -5,11 +5,6 @@
 (defun cons-to-inner-list (a aseq val)
     (aset a (aseql aseq) (cons val (aget a (aseql aseq)))))
 
-(defun make-error (env agent message)
-    (progn 
-        (print message)
-        (delete-agent-aclosures env agent)))
-
 (defun delete-agent-aclosures (env agent)
     (progn 
         (aset env "agents" (remove-if (lambda (val) (= (aget val "uid") (aget agent "uid"))) (aget env "agents")))
@@ -89,14 +84,12 @@
     :at "agents" (listt "agent")
     :at "aclosures" (cot :amap "agent" (listt (cot)))
     :at "variable type" (cot :amap "variable name" "type")
-    :at "port type" (cot :amap "port name" "port type")
-    :at "input variables" (listt "variable name")
-    :at "output variables" (listt "variable name")
+    :at "struct fields" (cot :amap "structure name" (cot :amap "variable name" "type"))
     :at "variable init" (cot :amap "variable name" "reflex init")
 )
 
 (mot "agent"
-    :at "value" "type")
+    :at "value" "extended type")
 #| 
 (mot "typed value"
     :at "type" "type"
@@ -105,22 +98,22 @@
 
 ;(att "cast" :at "pretype" "type")
 ;можно ли на union атрибуты добавлять?
-(att "expression" :at "restype" "type")
+(att "expression" :at "restype" "extended type")
 
 (aclosure c :attribute "type spec" :type "bool constant"
-    'bool)
+    :do 'bool)
 
 (aclosure c :attribute "type spec" :type "integer constant"
-    'undefined-int-type)
+    :do 'undefined-int-type)
 
 (aclosure c :attribute "type spec" :type "natural constant"
-    'undefined-int-type)
+    :do 'undefined-int-type)
 
 (aclosure c :attribute "type spec" :type "float constant"
-    'undefined-float-type)
+    :do 'undefined-float-type)
 
 (aclosure c :attribute "type spec" :type "time constant"
-    'undefined-int-type)
+    :do 'undefined-int-type)
 
 (aclosure c :attribute "type spec" :type "element access" :stage nil 
     :instance i
@@ -199,6 +192,9 @@
         new-type
 )
 
+(typedef "binary bool expression" (uniont "&&" "||" ">" ">=" "<" "<=" "=="))
+
+
 (aclosure c :attribute "type spec" :type "binary bool expression" :stage nil
     :instance i 
     :ap i "left" left 
@@ -218,6 +214,7 @@
     :ap "left" left 
     :ap i "left" left-arg 
     :ap i "right" right-arg 
+    :p (def-type (otype i) left right) new-type
     :do (if (not (= new-type left))
             (if (or (not (is-instance left "undefined type")) (is-instance new-type "undefined type"))
                 (aset i "left" (iobj "cast" :av "type" new-type :av "expression" left-arg :av "pretype" left))))
@@ -260,20 +257,20 @@
         new-type
 )
 
-(aclosure c :attribute "type spec" :type "assignments" :stage nil
+(aclosure c :attribute "type spec" :type "assignment operation" :stage nil
     :instance i 
     :ap i "right" 
     :do (update-push-aclosure c :av "stage" 'right)
         (clear-update-eval-aclosure c :av "instance" right)
 )
-(aclosure c :attribute "type spec" :type "assignments" :stage 'right
+(aclosure c :attribute "type spec" :type "assignment operation" :stage 'right
     :instance i 
     :ap i "left" left
     :value right
     :do (update-push-aclosure c :av "stage" 'left :av "right" right)
         (clear-update-eval-aclosure c :av "instance" left)
 )
-(aclosure c :attribute "type spec" :type "assignments" :stage 'right
+(aclosure c :attribute "type spec" :type "assignments operation" :stage 'right
     :instance i
     :value left
     :ap "right" right 
@@ -284,13 +281,13 @@
         left
 )
 
-(aclosure c :attribute "type spec" :type "increment&decrement" :stage nil
+(aclosure c :attribute "type spec" :type "prefix&postfix" :stage nil
     :instance i
     :ap i "access" access 
     :do (update-push-aclosure c :av "stage" 'next)
         (clear-update-eval-aclosure c :av "instance" access)
 )
-(aclosure c :attribute "type spec" :type "increment&decrement" :stage 'next
+(aclosure c :attribute "type spec" :type "prefix&postfix" :stage 'next
     :instance i
     :value val 
     :do (aset i "restype" val)
@@ -412,7 +409,84 @@
     (clear-update-eval-aclosure c :av "instance" (aget i "expression"))
 )
 
+(aclosure c :attribute "type spec" :type "for statement" 
+    :instance i 
+    :ap i "init" init 
+    :ap i "condition" cnd 
+    :ap i "update" upd 
+    :ap i "statement" st 
+    :do (update-eval-aclosure c :av "instance" init)
+        (update-eval-aclosure c :av "instance" upd)
+        (update-eval-aclosure c :av "instance" st)
+        (update-push-aclosure c :av "stage" 'cnd)
+        (update-eval-aclosure c :av "instance" cnd))
+
+
 ;Declarations
+
+(aclosure c :attribute "type spec" :type "constant declaration" 
+    :instance i 
+    :ap i "type" ty 
+    :ap i "name" name
+    :env env
+    :do (aset env (aseq "variable type") ty))
+(aclosure c :attribute "type spec" :type "simple variable declaration" 
+    :instance i 
+    :ap i "type" ty 
+    :ap i "name" name
+    :env env
+    :do (aset env (aseq "variable type") ty))
+(aclosure c :attribute "type spec" :type "array variable declaration" 
+    :instance i 
+    :ap i "type" ty 
+    :ap i "name" name
+    :env env
+    :do (aset env (aseq "variable type") ty))
+(aclosure c :attribute "type spec" :type "physical variable declaration" 
+    :instance i 
+    :ap i "type" ty 
+    :ap i "name" name
+    :env env
+    :do (aset env (aseq "variable type") ty))
+(aclosure c :attribute "type spec" :type "enum variable declaration" 
+    :instance i 
+    :ap i "name" name
+    :env env
+    :do (aset env (aseq "variable type") "int32"))
+(aclosure c :attribute "type spec" :type "structure variable declaration" 
+    :instance i 
+    :ap i "name" name
+    :ap i "type" ty 
+    :env env
+    :do (aset env (aseq "variable type") ty))
+
+(aclosure c :attribute "type spec" :type "structure declaration"  :stage nil
+    :instance i 
+    :ap i "name" name
+    :ap i "fields" fields
+    :do (clear-update-push-aclosure c :av "stage" 'fields :av "fields" fields :av "variable types" (cot)))
+(aclosure c :attribute "type spec" :type "structure declaration" :stage fields
+    :instance i 
+    :ap i "name" name
+    :ap "variable types" vty
+    :ap "fields" fields
+    :p (car fields) field
+    :env env
+    :do (if fields 
+            (clear-update-push-aclosure c :av "stage" 'fields :av "fields" (cdr fields) :av "variable types" (aset vty (aget field "name") (aget field "type")))
+            (aset env (aseq "struct fields" name) vty)))
+
+(aclosure c :attribute "type spec" :type "node declaration" :stage nil
+    :instance i 
+    :ap i "variables" vars 
+    :do (update-push-aclosure c :av "stage" 'vars :av "variables" vars))
+(aclosure c :attribute "type spec" :type "node declaration" :stage 'vars
+    :instance i 
+    :ap "variables" vars 
+    :do (if vars 
+            (progn (update-push-aclosure c :av "variables" (cdr vars))
+                (clear-update-eval-aclosure c :av "instance" (car vars))))
+)
 
 (aclosure c :attribute "type spec" :type "state declaration"
     :instance i 
@@ -424,7 +498,7 @@
     :ap i "states" states
     :do (update-push-aclosure c "stage" 'states :av "rest" states)
 )
-(aclosure c :attribute "type spec" :type "process declaration" :stage nil
+(aclosure c :attribute "type spec" :type "process declaration" :stage 'states
     :instance i 
     :ap "rest" rst
     :do (if rst 
@@ -435,10 +509,20 @@
 
 (aclosure c :attribute "type spec" :type "program declaration" :stage nil
     :instance i 
-    :ap i "processes" procs
-    :do (update-push-aclosure c "stage" 'procs :av "rest" procs)
+    :ap i "nodes" nodes
+    :do (update-push-aclosure c "stage" 'nodes :av "rest" nodes)
 )
-(aclosure c :attribute "type spec" :type "program declaration" :stage nil
+(aclosure c :attribute "type spec" :type "program declaration" :stage 'nodes
+    :instance i 
+    :ap "rest" rst
+    :ap i "processes" procs
+    :do (if rst 
+            (progn 
+                (update-push-aclosure c :av "rest" (cdr rst))
+                (clear-update-eval-aclosure c :av "instance" (car rst)))
+            (update-push-aclosure c "stage" 'procs :av "rest" procs))
+)
+(aclosure c :attribute "type spec" :type "program declaration" :stage 'procs
     :instance i 
     :ap "rest" rst
     :do (if rst 

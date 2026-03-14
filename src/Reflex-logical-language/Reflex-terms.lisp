@@ -2,22 +2,22 @@
   (:use #:cl))
 (in-package #:Reflex-semantics)
 
-(mot "program state name" (enumt symbol))
-(mot "outer var" (enumt "name"))
-(mot "term" (uniont "actuatable term" "nonactuatable term"))
-(mot "actuatable term" (uniont "binary operation" "unary operation" "value getter"  "cast operation"))
-(mot "nonactuatable term" (uniont "constant" "pstate compare" "outer var" "value list" "value map"))
-(mot "value list" (uniont listt "term"))
-(mot "value map" (uniont cot))
+(typedef "program state name" (enumt symbol))
+(typedef "outer var" (enumt "name"))
+(typedef "term" (uniont "actualizable term" "nonactualizable term"))
+(typedef "actualizable term" (uniont "binary operation" "unary operation" "value getter"  "cast operation"))
+(typedef "nonactualizable term" (uniont "constant" "pstate compare" "outer var" "value list" "value map"))
+(typedef "value list" (listt "term"))
+(typedef "value map" (cot :amap "field name" "term"))
 
 (mot "access" (uniont "term" "field name"))
-(mot "variable access" :at "name" "variable" :at "path" (listt "access"))
+(mot "variable access" :at "name" "variable name" :at "path" (listt "access"))
 
 (mot "value getter"
     :at "type" "simple type"
     :at "state" "program state"
     :at "access" "variable access"
-    :at "actuated" bool)
+    :at "actualized" bool)
 (mot "value setter"
     :at "type" "simple type"
     :at "state" "program state"
@@ -30,18 +30,17 @@
     :at "op" "bop" 
     :at "left" "term"
     :at "right" "term" 
-    :at "actuated" bool)
+    :at "actualized" bool)
 (mot "unary operation" 
     :at "type" "simple type"
     :at "op" "uop"
     :at "right" "term" 
-    :at "actuated" bool)
+    :at "actualized" bool)
 (mot "cast operation" 
     :at "type" "simple type"
     :at "pretype" "simple type" 
     :at "right" "term" 
-    :at "actuated" bool)
-
+    :at "actualized" bool)
 
 (mot "logic binop" :enum ("&&" "||" "==" "!=" "<" "<=" ">" ">="))
 (mot "num binop" :enum ("+" "-" "*" "/" "%" "&" "|" "^" "<<" ">>"))
@@ -72,6 +71,7 @@
     :at "process" "process name"
     :at "compare val" "term" 
     :at "exceed" bool)
+(mot "inv plug" :av "num" int)
 (mot "state notupdating formula" (uniont "forall" "exists" "ltime check" "term" "implication" "inv plug" "conjunction" "disjunction" "process activity" "process activity block"))
 
 (mot "program state" (uniont "program state name" "value setter"))

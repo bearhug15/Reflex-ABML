@@ -11,13 +11,15 @@
     :at "port type" (cot :amap "port name" "port type")
     :at "input variables" (listt "varibale name")
     :at "output variables" (listt "varibale name")
-    :at "variable init" (cot :amap "variable name" "reflex init")
+    :at "variable init" (cot :amap "variable name" "term")
     :at "processes states names" (cot :amap "process name" (listt "state name"))
-    :at "struct fields" (cot :amap "structure name" "variable name" "type")
-    :at "enum value" (cot :amap "enum name" "field name" "int")
+    :at "struct fields" (cot :amap "structure name" (listt "field name"))
+    :at "struct types" (cot :amap "structure name" (cot :amap "field name" "type"))
+    :at "enum value" (cot :amap "enum name" (cot :amap "field name" "int"))
     :atv "clock" int 100
 
     :at "conditions" (listt "vc lemma")
+    :at "processed loops" (listt int)
 
     ; List of compatability rules defined as a list of predicate functions returning nil if list of formulas is not compatable
     :at "crules" (listt (funt any "term" bool))
@@ -39,80 +41,82 @@
     :at "state" "program state"
 )
 
-(aclosure c :attribute "actuate" :type "value getter"
+(aclosure c :attribute "actualize" :type "value getter"
     :instance i 
-    :ap i "actuated" act 
+    :ap i "actualized" act 
     :ap i "type" rtype 
     :ap i "access" access
     :ap (aseq "agent" "state") state
     :do (if act 
             i 
-            (mo "value getter" :av "type" rtype :av "state" state :av "access" access :av "actuated" t))
+            (mo "value getter" :av "type" rtype :av "state" state :av "access" access :av "actualized" t))
 )
 
-(aclosure c :attribute "actuate" :type "binary operation" :stage nil
+(aclosure c :attribute "actualize" :type "binary operation" :stage nil
     :instance i 
-    :ap i "actuated" act  
+    :ap i "actualized" act  
     :ap i "left" left
     :do (if act 
             i 
             (progn (update-push-aclosure c :av "stage" 'left)
                 (clear-update-eval-aclosure c "instance" left)))
 )
-(aclosure c :attribute "actuate" :type "binary operation" :stage 'left
+(aclosure c :attribute "actualize" :type "binary operation" :stage 'left
     :instance i 
     :ap i "right" right
     :value val 
     :do (update-push-aclosure c :av "stage" 'right :av "left" val)
         (clear-update-eval-aclosure c :av "instance" right)
 )
-(aclosure c :attribute "actuate" :type "binary operation" :stage 'right
+(aclosure c :attribute "actualize" :type "binary operation" :stage 'right
     :instance i 
     :value right 
     :ap "left" left 
     :ap i "type" rtype 
     :ap i "op" op
-    :do (mo "binary operation" :av "type" rtype :av "op" op :av "left" left :av "right" right :av "actuated" t)
+    :do (mo "binary operation" :av "type" rtype :av "op" op :av "left" left :av "right" right :av "actualized" t)
 )
 
 
-(aclosure c :attribute "actuate" :type "unary operation" :stage nil
+(aclosure c :attribute "actualize" :type "unary operation" :stage nil
     :instance i 
-    :ap i "actuated" act  
+    :ap i "actualized" act  
     :ap i "right" right
     :do (if act 
             i 
             (progn (update-push-aclosure c :av "stage" 'right)
                 (clear-update-eval-aclosure c "instance" right)))
 )
-(aclosure c :attribute "actuate" :type "unary operation" :stage 'right
+(aclosure c :attribute "actualize" :type "unary operation" :stage 'right
     :instance i 
     :value right
     :ap i "type" rtype 
     :ap i "op" op
-    :do (mo "unary operation" :av "type" rtype :av "op" op :av "right" right :av "actuated" t)
+    :do (mo "unary operation" :av "type" rtype :av "op" op :av "right" right :av "actualized" t)
 )
 
-(aclosure c :attribute "actuate" :type "cast operation" :stage nil
+(aclosure c :attribute "actualize" :type "cast operation" :stage nil
     :instance i 
-    :ap i "actuated" act  
+    :ap i "actualized" act  
     :ap i "right" right
     :do (if act 
             i 
             (progn (update-push-aclosure c :av "stage" 'right)
                 (clear-update-eval-aclosure c "instance" right)))
 )
-(aclosure c :attribute "actuate" :type "cast operation" :stage 'right
+(aclosure c :attribute "actualize" :type "cast operation" :stage 'right
     :instance i 
     :value right
     :ap i "type" rtype 
     :ap i "op" op 
-    :do (mo "cast operation" :av "type" rtype :av "right" right :av "actuated" t)
+    :do (mo "cast operation" :av "type" rtype :av "right" right :av "actualized" t)
 )
 
-(aclosure c :attribute "actuate" :type "nonactuatable term"
+(aclosure c :attribute "actualize" :type "nonactualizable term"
     :instance i
     :do i)
+
+
 
 (aclosure c :attribute "axsem" :type "time constant"
     :instance i 
@@ -142,7 +146,7 @@
     :do (update-push-aclosure c :av "stage" 'access :av "accesses" (cdr rst))
         (clear-update-eval-aclosure c :av "instance" (cdr rst))
 )
-(aclosure c :attribute "axsem" :type "element access" :stage nil
+(aclosure c :attribute "axsem" :type "element access" :stage 'access
     :ap "accesses" rst
     :ap "collected" coll
     :value val
@@ -153,7 +157,7 @@
                     (clear-update-eval-aclosure c :av "instance" (car rst)))
                 (update-push-aclosure c :av "stage" 'complete :av "collected" (cons val coll)))
             (progn (update-push-aclosure c :av "stage" 'access-act)
-                (clear-update-eval-aclosure c :av "attribute" "actuate" :av "instance" val)))
+                (clear-update-eval-aclosure c :av "attribute" "actualize" :av "instance" val)))
 )
 (aclosure c :attribute "axsem" :type "element access" :stage 'access-act
     :instance i
@@ -172,9 +176,9 @@
     :value val 
     :ap "index" index 
     :ap "bounds" bounds
-    :p (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actuated" t) lbound
-    :p (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actuated" t) hbound
-    :p (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actuated" t) bound 
+    :p (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actualized" t) lbound
+    :p (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actualized" t) hbound
+    :p (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actualized" t) bound 
     :do (if rst
             (progn (update-push-aclosure c :av "collected" (cons index coll) 
                                             :av "accesses" (cdr rst) 
@@ -194,10 +198,12 @@
                 (let ((domain (mo "conjunction" :av "formulas" bounds))) 
                     (finalize-lemma a env domain)
                     (cons-to-inner-list a (aseq "precond") domain)))
+    :p (reverse coll) new-coll
+    :p (mo "variable access" :av "name" name :av "path" new-coll) access
         (mo "value getter" :av "type" (get-variable-type env name new-coll) 
                             :av "state" state 
-                            :av "name" access 
-                            :av "actuated" (not (null coll)))
+                            :av "access" access 
+                            :av "actualized" (not (null coll)))
 )
 
 (aclosure c :attribute "axsem" :type "enum element access"
@@ -231,7 +237,7 @@
     :ap i "restype" new-type
     :p (mo "binary operation" :av "type" new-type :av "op" (otype i) :av "left" left :av "right" right) new-expr 
     :do (update-push-aclosure c :av "stage" 'actuated)
-        (clear-update-eval-aclosure c :av "attribute" "actuate" :av "instance" new-expr)
+        (clear-update-eval-aclosure c :av "attribute" "actualize" :av "instance" new-expr)
 )
 (aclosure c :attribute "axsem" :type "nondivision binary expression" :stage 'actuated
     :value val 
@@ -258,14 +264,14 @@
     :value right 
     :ap "left" left 
     :do (update-push-aclosure c :av "stage" 'left-act :av "right" right)
-        (clear-update-eval-aclosure c :av "attribute" "actuate" :av "instance" left)
+        (clear-update-eval-aclosure c :av "attribute" "actualize" :av "instance" left)
 )
 (aclosure c :attribute "axsem" :type "division" :stage 'left-act
     :instance i   
     :value left
     :ap "right" right
     :do (update-push-aclosure c :av "stage" 'right-act :av "left" left)
-        (clear-update-eval-aclosure c :av "attribute" "actuate" :av "instance" right)
+        (clear-update-eval-aclosure c :av "attribute" "actualize" :av "instance" right)
 )
 (aclosure c :attribute "axsem" :type "division" :stage 'right-act
     :instance i
@@ -273,8 +279,8 @@
     :env env 
     :ap "left" left 
     :do (let* ((new-type (aget i "restype"))
-            (new-expr (mo "binary operation" :av "type" new-type :av "op" (otype i) :av "left" left :av "right" right :av "actuated" t))
-            (domain (mo "binary operation" :av "type" bool :av "op" "!=" :av "left" right :av "right" 0 :av "actuated" t)))
+            (new-expr (mo "binary operation" :av "type" new-type :av "op" (otype i) :av "left" left :av "right" right :av "actualized" t))
+            (domain (mo "binary operation" :av "type" bool :av "op" "!=" :av "left" right :av "right" 0 :av "actualized" t)))
             (finalize-lemma a env domain)
             (cons-to-inner-list a (aseq "precond") domain)
             new-expr)
@@ -290,7 +296,7 @@
     :instance i 
     :value left 
     :do (update-push-aclosure c :av "stage" 'actuated)
-        (clear-update-eval-aclosure c :av "instance" left :av "attribute" "actuate")
+        (clear-update-eval-aclosure c :av "instance" left :av "attribute" "actualize")
 )
 (aclosure c :attribute "axsem" :type "&&" :stage 'actuated
     :instance i 
@@ -305,7 +311,7 @@
     :instance i
     :agent a
     :ap "left" left 
-    :p (mo "unary operation" :av "type" bool :av "op" "!" :av "right" left :av "actuated" t) cnd
+    :p (mo "unary operation" :av "type" bool :av "op" "!" :av "right" left :av "actualized" t) cnd
     :do (cons-to-inner-list a (aseq "precond")  cnd)
         'false
 )
@@ -314,9 +320,9 @@
     :value right 
     :ap "left" left
     :do (update-push-aclosure c :av "stage" 'long-act :av "left" left)
-        (clear-update-eval-aclosure c :av "instance" right :av "attribute" "actuate")
+        (clear-update-eval-aclosure c :av "instance" right :av "attribute" "actualize")
 )
-(aclosure c :attribute "axsem" :type "&&" :stage 'long
+(aclosure c :attribute "axsem" :type "&&" :stage 'long-act
     :instance i
     :value right 
     :ap "left" left 
@@ -334,7 +340,7 @@
     :instance i 
     :value left 
     :do (update-push-aclosure c :av "stage" 'actuated)
-        (clear-update-eval-aclosure c :av "instance" left :av "attribute" "actuate")
+        (clear-update-eval-aclosure c :av "instance" left :av "attribute" "actualize")
 )
 (aclosure c :attribute "axsem" :type "\|\|" :stage 'actuated
     :instance i 
@@ -357,13 +363,13 @@
     :value right 
     :ap "left" left
     :do (update-push-aclosure c :av "stage" 'long-act :av "left" left)
-        (clear-update-eval-aclosure c :av "instance" right :av "attribute" "actuate")
+        (clear-update-eval-aclosure c :av "instance" right :av "attribute" "actualize")
 )
 (aclosure c :attribute "axsem" :type "\|\|" :stage 'long
     :instance i
     :value right 
     :ap "left" left 
-    :p (mo "unary operation" :av "type" bool :av "op" "!" :av "right" left :av "actuated" t) cnd
+    :p (mo "unary operation" :av "type" bool :av "op" "!" :av "right" left :av "actualized" t) cnd
     :do (cons-to-inner-list a (aseq "precond")  cnd)
         right
 )
@@ -379,14 +385,14 @@
     :instance i 
     :value right 
     :do (update-push-aclosure c :av "stage" 'actuated)
-        (clear-update-eval-aclosure c :av "attribute" "actuate" :av "instance" new-expr)
+        (clear-update-eval-aclosure c :av "attribute" "actualize" :av "instance" new-expr)
 )
 (aclosure c :attribute "axsem" :type "cast" :stage 'actuated 
     :instance i
     :value val
     :ap i "type" rtype
     :ap i (aseq "right" "restype") pretype
-    :do (mo "cast operation" :av "type" rtype :av "pretype" pretype :av "right" val :av "actuated" t)
+    :do (mo "cast operation" :av "type" rtype :av "pretype" pretype :av "right" val :av "actualized" t)
 )
 
 (aclosure c :attribute "axsem" :type "!." :stage nil
@@ -399,12 +405,12 @@
     :instance i 
     :value right
     :do (update-push-aclosure c :av "stage" 'actuated)
-        (clear-update-eval-aclosure c :av "attribute" "actuate" :av "instance" new-expr)
+        (clear-update-eval-aclosure c :av "attribute" "actualize" :av "instance" new-expr)
 )
 (aclosure c :attribute "axsem" :type "!." :stage 'right
     :instance i 
     :value val 
-    :do (mo "unary operation" :av "type" 'bool :av "op" "!" :av "right" right :av "actuated" t)
+    :do (mo "unary operation" :av "type" 'bool :av "op" "!" :av "right" right :av "actualized" t)
 )
 
 (aclosure c :attribute "axsem" :type "-." :stage nil
@@ -417,12 +423,12 @@
     :instance i
     :value right
     :do (update-push-aclosure c :av "stage" 'actuated)
-        (clear-update-eval-aclosure c :av "attribute" "actuate" :av "instance" new-expr)
+        (clear-update-eval-aclosure c :av "attribute" "actualize" :av "instance" new-expr)
 )
 (aclosure c :attribute "axsem" :type "-." :stage 'actuated
     :instance i
     :value val
-    :do (mo "unary operation" :av "type" (aget val "type") :av "op" "-" :av "right" right :av "actuated" t)
+    :do (mo "unary operation" :av "type" (aget val "type") :av "op" "-" :av "right" right :av "actualized" t)
 )
 
 (aclosure c :attribute "axsem" :type "~." :stage nil
@@ -435,12 +441,12 @@
     :instance i
     :value right
     :do (update-push-aclosure c :av "stage" 'actuated)
-        (clear-update-eval-aclosure c :av "attribute" "actuate" :av "instance" new-expr)
+        (clear-update-eval-aclosure c :av "attribute" "actualize" :av "instance" new-expr)
 )
 (aclosure c :attribute "axsem" :type "~." :stage 'actuated
     :instance i
     :value val
-    :do (mo "unary operation" :av "type" (aget val "type") :av "op" "~" :av "right" right :av "actuated" t)
+    :do (mo "unary operation" :av "type" (aget val "type") :av "op" "~" :av "right" right :av "actualized" t)
 )
 
 
@@ -483,14 +489,14 @@
                 (update-push-aclosure c :av "collected" (cons val coll) :av "accesses" (cdr rst))
                 (clear-update-eval-aclosure c :av "instance" (car rst)))
             (progn (update-push-aclosure c :av "stage" 'right-act :av "collected" (cons val coll))
-                (clear-update-eval-aclosure c :av "instance" right :av "attribute" "actuate")))
+                (clear-update-eval-aclosure c :av "instance" right :av "attribute" "actualize")))
 )
 (aclosure c :attribute "axsem" :type "=" :stage 'right-act
     :instance i
     :value val
     :ap "collected" coll
     :do (update-push-aclosure c :av "right" val :av "stage" 'access-act :av "collected" (cdr coll))
-        (clear-update-eval-aclosure c :av "instance" (car coll) :av "attribute" "actuate")
+        (clear-update-eval-aclosure c :av "instance" (car coll) :av "attribute" "actualize")
 )
 (aclosure c :attribute "axsem" :type "=" :stage 'access-act
     :instance i
@@ -502,7 +508,7 @@
     :ap "accesses" rst 
     :do (if rst 
             (progn (update-push-aclosure c :av "collected" (cdr coll) :av "new collected" (cons val new-coll))
-                (clear-update-eval-aclosure c :av "instance" (car coll) :av "attribute" "actuate"))
+                (clear-update-eval-aclosure c :av "instance" (car coll) :av "attribute" "actualize"))
             (progn (update-push-aclosure c :av "stage" 'domain :av "collected" (cons val new-coll) :av "path" (cons val new-coll))
                 (clear-update-eval-aclosure c :av "instance" (get-array-size env name nil))))
 )
@@ -517,9 +523,9 @@
                 (progn (update-push-aclosure c :av "path" (cdr path) :av "passed path" (cons (car path) ppath))
                     (clear-update-eval-aclosure c :av "instance" (get-array-size env name (reverse (cons (car path) ppath)))))
                 (let* ((idx (car path))
-                        (lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actuated" t))
-                        (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actuated" t))
-                        (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actuated" t)))
+                        (lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actualized" t))
+                        (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actualized" t))
+                        (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actualized" t)))
                     (update-push-aclosure c :av "path" (cdr path) :av "passed path" (cons 0 ppath) :av "bounds" (cons bound domain))
                     (clear-update-eval-aclosure c :av "instance" (get-array-size env name (reverse (cons 0 ppath))))))
             (update-push-aclosure c :av "stage" 'complete))
@@ -541,7 +547,7 @@
                 (finalize-lemma a env domain)
                 (cons-to-inner-list a (aseq "precond") domain)))
         (if (null coll) 
-            (mo "value getter" :av "type" (get-variable-type env name new-coll) :av "state" state :av "name" access :av "actuated" nil)
+            (mo "value getter" :av "type" (get-variable-type env name new-coll) :av "state" state :av "name" access :av "actualized" nil)
             right)
 )
 
@@ -570,14 +576,14 @@
                 (update-push-aclosure c :av "collected" (cons val coll) :av "accesses" (cdr rst))
                 (clear-update-eval-aclosure c :av "instance" (car rst)))
             (progn (update-push-aclosure c :av "stage" 'right-act :av "collected" (cons val coll))
-                (clear-update-eval-aclosure c :av "instance" right :av "attribute" "actuate")))
+                (clear-update-eval-aclosure c :av "instance" right :av "attribute" "actualize")))
 )
 (aclosure c :attribute "axsem" :type "nondivision complex assignment" :stage 'right-act
     :instance i
     :value val 
     :ap c "collected" coll
     :do (update-push-aclosure c :av "right" val :av "stage" 'access-act :av "collected" (cdr coll))
-        (clear-update-eval-aclosure c :av "instance" (car coll) :av "attribute" "actuate")
+        (clear-update-eval-aclosure c :av "instance" (car coll) :av "attribute" "actualize")
 )
 (aclosure c :attribute "axsem" :type "nondivision complex assignment" :stage 'access-act
     :instance i
@@ -589,7 +595,7 @@
     :ap left "name" name
     :do (if rst 
             (progn (update-push-aclosure c :av "collected" (cdr coll) :av "new collected" (cons val new-coll))
-                (clear-update-eval-aclosure c :av "instance" (car coll) :av "attribute" "actuate"))
+                (clear-update-eval-aclosure c :av "instance" (car coll) :av "attribute" "actualize"))
             (progn (update-push-aclosure c :av "stage" 'domain :av "collected" (cons val new-coll) :av "path" (cons val new-coll))
                 (clear-update-eval-aclosure c :av "instance" (get-array-size env name nil))))
 )
@@ -604,9 +610,9 @@
                 (progn (update-push-aclosure c :av "path" (cdr path) :av "passed path" (cons (car path) ppath))
                     (clear-update-eval-aclosure c :av "instance" (get-array-size env name (reverse (cons (car path) ppath)))))
                 (let* ((idx (car path))
-                        (lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actuated" t))
-                        (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actuated" t))
-                        (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actuated" t)))
+                        (lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actualized" t))
+                        (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actualized" t))
+                        (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actualized" t)))
                     (update-push-aclosure c :av "path" (cdr path) :av "passed path" (cons 0 ppath) :av "bounds" (cons bound domain))
                     (clear-update-eval-aclosure c :av "instance" (get-array-size env name (reverse (cons 0 ppath))))))
             (update-push-aclosure c :av "stage" 'complete))
@@ -622,7 +628,7 @@
     :ap "bounds" domain
     :do (let* ((access (mo "variable access" :av "name" name :av "path" coll))
                 (old-val (mo "value getter" :av "type" (get-variable-type env name coll) :av "state" state :av "name" access))
-                (new-val (mo "binary operation" :av "type"(get-variable-type env name coll) :av "op" (assignment-to-expression (otype i)) :av "left" old-val :av "right" right :av "actuated" t))
+                (new-val (mo "binary operation" :av "type"(get-variable-type env name coll) :av "op" (assignment-to-expression (otype i)) :av "left" old-val :av "right" right :av "actualized" t))
                 (new-state (mo "value setter" :av "type" (get-variable-type env name coll) :av "state" state :av "name" access :av "value" new-val)))
             (aset a "state" new-state)
             (if (not (null domain))
@@ -630,7 +636,7 @@
                     (finalize-lemma a env domain)
                     (cons-to-inner-list a (aseq "precond") domain)))
             (if (null coll) 
-                (mo "value getter" :av "type" (get-variable-type env name new-coll) :av "state" state :av "name" access :av "actuated" nil)
+                (mo "value getter" :av "type" (get-variable-type env name new-coll) :av "state" state :av "name" access :av "actualized" nil)
                 right))
 )
 
@@ -659,14 +665,14 @@
             (progn (update-push-aclosure c :av "collected" (cons val coll) :av "accesses" (cdr rst))
                 (clear-update-eval-aclosure c :av "instance" (car rst)))
             (progn (update-push-aclosure c :av "stage" 'right-act :av "collected" (cons val coll))
-                (clear-update-eval-aclosure c :av "instance" right :av "attribute" "actuate")))
+                (clear-update-eval-aclosure c :av "instance" right :av "attribute" "actualize")))
 )
 (aclosure c :attribute "axsem" :type "division complex assignment" :stage 'right-act
     :instance i
     :value val 
     :ap c "collected" coll
     :do (update-push-aclosure c :av "right" val :av "stage" 'access-act :av "collected" (cdr coll))
-        (clear-update-eval-aclosure c :av "instance" (car coll) :av "attribute" "actuate")
+        (clear-update-eval-aclosure c :av "instance" (car coll) :av "attribute" "actualize")
 )
 (aclosure c :attribute "axsem" :type "division complex assignment" :stage 'access-act
     :instance i
@@ -678,7 +684,7 @@
     :ap left "name" name
     :do (if rst 
             (progn (update-push-aclosure c :av "collected" (cdr coll) :av "new collected" (cons val new-coll))
-                (clear-update-eval-aclosure c :av "instance" (car coll) :av "attribute" "actuate"))
+                (clear-update-eval-aclosure c :av "instance" (car coll) :av "attribute" "actualize"))
             (progn (update-push-aclosure c :av "stage" 'domain :av "collected" (cons val new-coll) :av "path" (cons val new-coll))
                 (clear-update-eval-aclosure c :av "instance" (get-array-size env name nil))))
 )
@@ -693,9 +699,9 @@
                 (progn (update-push-aclosure c :av "path" (cdr path) :av "passed path" (cons (car path) ppath))
                     (clear-update-eval-aclosure c :av "instance" (get-array-size env name (reverse (cons (car path) ppath)))))
                 (let* ((idx (car path))
-                        (lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actuated" t))
-                        (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actuated" t))
-                        (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actuated" t)))
+                        (lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actualized" t))
+                        (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actualized" t))
+                        (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actualized" t)))
                     (update-push-aclosure c :av "path" (cdr path) :av "passed path" (cons 0 ppath) :av "bounds" (cons bound domain))
                     (clear-update-eval-aclosure c :av "instance" (get-array-size env name (reverse (cons 0 ppath))))))
             (update-push-aclosure c :av "stage" 'complete))
@@ -711,15 +717,15 @@
     :ap "bounds" domain
     :do (let* ((access (mo "variable access" :av "name" name :av "path" coll))
                 (old-val (mo "value getter" :av "type" (get-variable-type env name coll) :av "state" state :av "name" access))
-                (new-val (mo "binary operation" :av "type"(get-variable-type env name coll) :av "op" (assignment-to-expression (otype i)) :av "left" old-val :av "right" right :av "actuated" t))
+                (new-val (mo "binary operation" :av "type"(get-variable-type env name coll) :av "op" (assignment-to-expression (otype i)) :av "left" old-val :av "right" right :av "actualized" t))
                 (new-state (mo "value setter" :av "type" (get-variable-type env name coll) :av "state" state :av "name" access :av "value" new-val))
-                (div-domain (mo "binary operation" :av "type" 'bool :av "op" "=" :av "left" right :av "right" 0 :av "actuated" t)))
+                (div-domain (mo "binary operation" :av "type" 'bool :av "op" "=" :av "left" right :av "right" 0 :av "actualized" t)))
             (aset a "state" new-state)
             (let ((domain (mo "conjunction" :av "formulas" (cons div-domain bounds))))
                 (finalize-lemma a env domain)
                 (cons-to-inner-list a (aseq "precond") domain))
             (if (null coll) 
-                (mo "value getter" :av "type" (get-variable-type env name new-coll) :av "state" state :av "name" access :av "actuated" nil)
+                (mo "value getter" :av "type" (get-variable-type env name new-coll) :av "state" state :av "name" access :av "actualized" nil)
                 right))
 )
 
@@ -742,7 +748,7 @@
                     (clear-update-eval-aclosure c :av "instance" (car rest)))
                 (update-push-aclosure c :av "stage" 'complete :av "collected" (cons val coll)))
             (progn (update-push-aclosure c :av "stage" 'access-act)
-                (clear-update-eval-aclosure c :av "attribute" "actuate" :av "instance" val)))
+                (clear-update-eval-aclosure c :av "attribute" "actualize" :av "instance" val)))
 )
 (aclosure c :attribute "axsem" :type "++." :stage 'access-act
     :instance i  
@@ -760,9 +766,9 @@
     :value val
     :ap "index" index 
     :ap "bounds" bounds
-    :do (let* ((lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actuated" t))
-                (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actuated" t))
-                (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actuated" t))) 
+    :do (let* ((lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actualized" t))
+                (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actualized" t))
+                (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actualized" t))) 
             (if rest
                 (progn (update-push-aclosure c :av "collected" (cons index coll) :av "accesses" (cdr rest) :av "bounds" (cons bound bounds))
                     (clear-update-eval-aclosure c :av "instance" (car rest)))
@@ -779,8 +785,8 @@
     :do (let* ((new-coll (reverse coll))
                 (access (mo "variable access" :av "name" name :av "path" new-coll))
                 (var-type (get-variable-type env name new-coll))
-                (getter (mo "value getter" :av "type" var-type :av "state" state :av "name" access :av "actuated" t))
-                (new-val (mo "binary operation" :av "type" var-type :av "op" "+" :av "left" getter :av "right" 1 :av "actuated" t))
+                (getter (mo "value getter" :av "type" var-type :av "state" state :av "name" access :av "actualized" t))
+                (new-val (mo "binary operation" :av "type" var-type :av "op" "+" :av "left" getter :av "right" 1 :av "actualized" t))
                 (setter (mo "value setter" :av "type" var-type :av "state" state :av "name" access :av "value" new-val)))
             (if (not (null bounds))
                 (let ((domain (mo "conjunction" :av "formulas" bounds))) 
@@ -788,7 +794,7 @@
                     (cons-to-inner-list a (aseq "precond") domain)))
             (aset a "state" setter)
             (if (null coll)
-                (mo "value getter" :av "type" var-type :av "state" (aget a "state") :av "name" access :av "actuated" nil)
+                (mo "value getter" :av "type" var-type :av "state" (aget a "state") :av "name" access :av "actualized" nil)
                 new-val)
         )
 )
@@ -813,7 +819,7 @@
                     (clear-update-eval-aclosure c :av "instance" (car rest)))
                 (update-push-aclosure c :av "stage" 'complete :av "collected" (cons val coll)))
             (progn (update-push-aclosure c :av "stage" 'access-act)
-                (clear-update-eval-aclosure c :av "attribute" "actuate" :av "instance" val)))
+                (clear-update-eval-aclosure c :av "attribute" "actualize" :av "instance" val)))
 )
 (aclosure c :attribute "axsem" :type ".++" :stage 'access-act
     :instance i  
@@ -831,9 +837,9 @@
     :value val
     :ap "index" index 
     :ap "bounds" bounds
-    :do (let* ((lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actuated" t))
-                (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actuated" t))
-                (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actuated" t))) 
+    :do (let* ((lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actualized" t))
+                (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actualized" t))
+                (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actualized" t))) 
             (if rest
                 (progn (update-push-aclosure c :av "collected" (cons index coll) :av "accesses" (cdr rest) :av "bounds" (cons bound bounds))
                     (clear-update-eval-aclosure c :av "instance" (car rest)))
@@ -850,8 +856,8 @@
     :do (let* ((new-coll (reverse coll))
                 (access (mo "variable access" :av "name" name :av "path" new-coll))
                 (var-type (get-variable-type env name new-coll))
-                (getter (mo "value getter" :av "type" var-type :av "state" state :av "name" access :av "actuated" t))
-                (new-val (mo "binary operation" :av "type" var-type :av "op" "+" :av "left" getter :av "right" 1 :av "actuated" t))
+                (getter (mo "value getter" :av "type" var-type :av "state" state :av "name" access :av "actualized" t))
+                (new-val (mo "binary operation" :av "type" var-type :av "op" "+" :av "left" getter :av "right" 1 :av "actualized" t))
                 (setter (mo "value setter" :av "type" var-type :av "state" state :av "name" access :av "value" new-val)))
             (if (not (null bounds))
                 (let ((domain (mo "conjunction" :av "formulas" bounds))) 
@@ -880,7 +886,7 @@
                     (clear-update-eval-aclosure c :av "instance" (car rest)))
                 (update-push-aclosure c :av "stage" 'complete :av "collected" (cons val coll)))
             (progn (update-push-aclosure c :av "stage" 'access-act)
-                (clear-update-eval-aclosure c :av "attribute" "actuate" :av "instance" val)))
+                (clear-update-eval-aclosure c :av "attribute" "actualize" :av "instance" val)))
 )
 (aclosure c :attribute "axsem" :type "--." :stage 'access-act
     :instance i  
@@ -898,9 +904,9 @@
     :value val
     :ap "index" index 
     :ap "bounds" bounds
-    :do (let* ((lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actuated" t))
-                (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actuated" t))
-                (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actuated" t))) 
+    :do (let* ((lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actualized" t))
+                (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actualized" t))
+                (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actualized" t))) 
             (if rest
                 (progn (update-push-aclosure c :av "collected" (cons index coll) :av "accesses" (cdr rest) :av "bounds" (cons bound bounds))
                     (clear-update-eval-aclosure c :av "instance" (car rest)))
@@ -917,8 +923,8 @@
     :do (let* ((new-coll (reverse coll))
                 (access (mo "variable access" :av "name" name :av "path" new-coll))
                 (var-type (get-variable-type env name new-coll))
-                (getter (mo "value getter" :av "type" var-type :av "state" state :av "name" access :av "actuated" t))
-                (new-val (mo "binary operation" :av "type" var-type :av "op" "-" :av "left" getter :av "right" 1 :av "actuated" t))
+                (getter (mo "value getter" :av "type" var-type :av "state" state :av "name" access :av "actualized" t))
+                (new-val (mo "binary operation" :av "type" var-type :av "op" "-" :av "left" getter :av "right" 1 :av "actualized" t))
                 (setter (mo "value setter" :av "type" var-type :av "state" state :av "name" access :av "value" new-val)))
             (if (not (null bounds))
                 (let ((domain (mo "conjunction" :av "formulas" bounds))) 
@@ -926,7 +932,7 @@
                     (cons-to-inner-list a (aseq "precond") domain)))
             (aset a "state" setter)
             (if (null coll)
-                (mo "value getter" :av "type" var-type :av "state" (aget a "state") :av "name" access :av "actuated" nil)
+                (mo "value getter" :av "type" var-type :av "state" (aget a "state") :av "name" access :av "actualized" nil)
                 new-val)
         )
 )
@@ -951,7 +957,7 @@
                     (clear-update-eval-aclosure c :av "instance" (car rest)))
                 (update-push-aclosure c :av "stage" 'complete :av "collected" (cons val coll)))
             (progn (update-push-aclosure c :av "stage" 'access-act)
-                (clear-update-eval-aclosure c :av "attribute" "actuate" :av "instance" val)))
+                (clear-update-eval-aclosure c :av "attribute" "actualize" :av "instance" val)))
 )
 (aclosure c :attribute "axsem" :type ".--" :stage 'access-act
     :instance i  
@@ -969,9 +975,9 @@
     :value val
     :ap "index" index 
     :ap "bounds" bounds
-    :do (let* ((lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actuated" t))
-                (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actuated" t))
-                (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actuated" t))) 
+    :do (let* ((lbound (mo "binary operation" :av "type" 'bool :av "op" "<=" :av "left" 0 :av "right" index :av "actualized" t))
+                (hbound (mo "binary operation" :av "type" 'bool :av "op" "<" :av "left" index :av "right" val :av "actualized" t))
+                (bound (mo "binary operation" :av "type" 'bool :av "op" "&&" :av "left" lbound :av "right" hbound :av "actualized" t))) 
             (if rest
                 (progn (update-push-aclosure c :av "collected" (cons index coll) :av "accesses" (cdr rest) :av "bounds" (cons bound bounds))
                     (clear-update-eval-aclosure c :av "instance" (car rest)))
@@ -988,8 +994,8 @@
     :do (let* ((new-coll (reverse coll))
                 (access (mo "variable access" :av "name" name :av "path" new-coll))
                 (var-type (get-variable-type env name new-coll))
-                (getter (mo "value getter" :av "type" var-type :av "state" state :av "name" access :av "actuated" t))
-                (new-val (mo "binary operation" :av "type" var-type :av "op" "-" :av "left" getter :av "right" 1 :av "actuated" t))
+                (getter (mo "value getter" :av "type" var-type :av "state" state :av "name" access :av "actualized" t))
+                (new-val (mo "binary operation" :av "type" var-type :av "op" "-" :av "left" getter :av "right" 1 :av "actualized" t))
                 (setter (mo "value setter" :av "type" var-type :av "state" state :av "name" access :av "value" new-val)))
             (if (not (null bounds))
                 (let ((domain (mo "conjunction" :av "formulas" bounds))) 
@@ -1047,11 +1053,7 @@
     :agent a 
     :ap a "current process" current-process 
     :do (update-attributes a (aget i "analysis attributes"))
-        (if state 
-            (progn 
-                (cons-to-inner-list a (list "cur cond") (mo "pstate setter" :av "process" current-process :av "state" state)))
-            (let ((next-state (next-process-state a env)))
-                (cons-to-inner-list a (list "cur cond") (mo "pstate setter" :av "process" current-process :av "state" next-state))))
+        (cons-to-inner-list a (list "cur cond") (mo "pstate setter" :av "process" current-process :av "state" state))
 )
 (aclosure c :attribute "axsem" :type "restart process"
     :instance i 
@@ -1108,28 +1110,29 @@
             (clear-update-eval-aclosure c :av "instance" (mo "error current process"))
             (progn (cons-to-inner-list a (aseq "cur cond") (mo "pstate setter" :av "process" process :av "state" "error"))))
 )
-(aclosure c "axsem" "if then else statement" :stage nil 
+
+(aclosure c :attribute "axsem" :type "if then else statement" :stage nil 
     :instance i
     :p (aget i "condition") cnd 
     :do (update-push-aclosure c :av "stage" 'cond)
         (clear-update-eval-aclosure c :av "instance" cnd)
 )
-(aclosure c "axsem" "if then else statement" :stage 'cond 
+(aclosure c :attribute "axsem" :type "if then else statement" :stage 'cond 
     :value cnd
     :do (update-push-aclosure c :av "stage" 'cond-act)
         (clear-update-eval-aclosure c :av "instance" cnd)
 )
-(aclosure c "axsem" "if then else statement" :stage 'cond-act
+(aclosure c :attribute "axsem" :type "if then else statement" :stage 'cond-act
     :env env
     :agent a 
     :value cnd
-    :do (if (finalize-expression c)
+    :do (if 
             (progn (clear-agent-expr a)
                 (update-push-aclosure c :av "stage" 'false :av "agent" (iclone-agent env a) :av "cnd" cnd)
                 (update-push-aclosure c :av "stage" 'true :av "cnd" cnd))
             (delete-agent-aclosures env a))
 )
-(aclosure c "axsem" "if then else statement" :stage 'true
+(aclosure c :attribute "axsem" :type "if then else statement" :stage 'true
     :env env
     :agent a 
     :value cnd
@@ -1143,7 +1146,7 @@
                                 (clear-update-eval-aclosure c :av "instance" then))
                             (delete-agent-aclosures env a))))
 )
-(aclosure c "axsem" "if then else statement" :stage 'false
+(aclosure c :attribute "axsem" :type "if then else statement" :stage 'false
     :env env
     :agent a 
     :value cnd
@@ -1156,7 +1159,7 @@
                                 :av "type" bool-constant 
                                 :av "op" "!" 
                                 :av "value" cnd 
-                                :av "actuated" t)))
+                                :av "actualized" t)))
                         (if (check-compatability c new-cnd))
                             (progn (cons-to-inner-list a (list "cur cond") new-cnd)
                                 (clear-update-eval-aclosure c :av "instance" else))
@@ -1173,7 +1176,7 @@
     :instance i 
     :value cnd
     :do (update-push-aclosure c :av "stage" 'cond-act)
-        (clear-update-eval-aclosure c :av "instance" cnd :av "attribute" "actuate")
+        (clear-update-eval-aclosure c :av "instance" cnd :av "attribute" "actualize")
 )
 (aclosure c :attribute "axsem" :type "if then statement" :stage 'cond-act
     :instance i 
@@ -1208,7 +1211,7 @@
     :do (case cnd 
             ('false nil)
             ('true (delete-agent-aclosures env a))
-            (otherwise (let ((new-cnd (mo "unary operator" :av "type" bool-constant :av "op" "!" :av "value" cnd :av "actuated" t)))
+            (otherwise (let ((new-cnd (mo "unary operator" :av "type" bool-constant :av "op" "!" :av "value" cnd :av "actualized" t)))
                         (if (check-compatability c new-cnd))
                             (cons-to-inner-list a (aseq "cur cond") new-cnd)
                             (delete-agent-aclosures env a))))   
@@ -1259,10 +1262,10 @@
     :p (car css) cs
     :ap "cnd" cnd 
     :do (let* ((label (aget cs "label"))
-                (expr (mo "binary operation" :av "op" "==" :av "type" bool :av "left" cnd :av "right" label :av "actuated" t)))
+                (expr (mo "binary operation" :av "op" "==" :av "type" bool :av "left" cnd :av "right" label :av "actualized" t)))
             (cons-to-inner-list a (aseq "cur cond") expr)
-            (if (not (aget cs "break"))
-                (update-push-aclosure c :av "stage" 'cont-case-iter :av "cases" (cdr css)))
+            ;(if (not (aget cs "break"))
+            ;    (update-push-aclosure c :av "stage" 'cont-case-iter :av "cases" (cdr css)))
             (clear-update-eval-aclosure c :av "instance" cs))
 )
 (aclosure c :attribute "axsem" :type "switch statement" :stage 'case-iter-false
@@ -1273,7 +1276,7 @@
     :p (car css) cs
     :ap "cnd" cnd 
     :do (let* ((label (aget cs "label"))
-                (expr (mo "binary operation" :av "op" "!=" :av "type" bool :av "left" cnd :av "right" label :av "actuated" t)))
+                (expr (mo "binary operation" :av "op" "!=" :av "type" bool :av "left" cnd :av "right" label :av "actualized" t)))
             (cons-to-inner-list a (aseq "cur cond") expr)
             (update-push-aclosure c :av "stage" 'case-label :av "cases" (cdr css)))
 )
@@ -1362,7 +1365,7 @@
     :ap a "current process" process
     :ap "cnd" cnd 
     :ap i "statements" sts
-    :p (mo "ltime check" :av "state" "blank" :av "process" process  :av "comapre val" cnd :av "exceed" t) new-cnd
+    :p (mo "ltime check" :av "state" "blank" :av "process" process  :av "compare val" cnd :av "exceed" t) new-cnd
     :do (if (check-compatability c new-cnd)
             (progn (cons-to-inner-list a (aseq "cur cond") new-cnd)
                 (clear-update-eval-aclosure c :av "instance" sts))
@@ -1373,12 +1376,101 @@
     :agent a 
     :ap a "current process" process
     :ap "cnd" cnd 
-    :p (mo "ltime check" :av "state" "blank" :av "process" process  :av "comapre val" cnd :av "exceed" nil) new-cnd 
+    :p (mo "ltime check" :av "state" "blank" :av "process" process  :av "compare val" cnd :av "exceed" nil) new-cnd 
     :do (if (check-compatability c new-cnd)
             (cons-to-inner-list a (aseq "cur cond") new-cnd)
             (delete-agent-aclosures c))
 )
 
+(aclosure c :attribute "axsem" :type "for statement" :stage nil 
+    :instance i 
+    :ap i "init" init 
+    :do (update-push-aclosure c :av "stage" 'inited)
+        (clear-update-eval-aclosure c :av "instance" init))
+(aclosure c :attribute "axsem" :type "for statement" :stage 'inited 
+    :instance i
+    :agent a 
+    :env env
+    :p (mot "inv plug" :av "num" (uid i)) loop-inv
+    :do (finalize-lemma a env loop-inv)
+        (aset a (aseq "cur cond") nil)
+        (update-push-aclosure c :av "stage" 'cond)
+        (if (not (member (uid i) (aget env "processed loops")))
+            (update-push-aclosure c :av "stage" 'cond)
+            (delete-agent-aclosures c))
+)
+(aclosure c :attribute "axsem" :type "for statement" :stage 'cond 
+    :instance i
+    :ap i "condition" cond
+    :do
+        (update-push-aclosure c :av "stage" 'cond-act)
+        (clear-update-eval-aclosure c :av "attribute" "actualize" :av "instance" cond)
+)
+(aclosure c :attribute "axsem" :type "for statement" :stage 'cond-act
+    :instance i
+    :env env
+    :agent a
+    :value cond-val
+    :p (mot "inv plug" :av "num" (uid i)) loop-inv
+    :do (finalize-expression c)
+        (cons-to-inner-list a (aseq "cur cond") loop-inv)
+        (cons-to-inner-list a (aseq "cur cond") cond-val)
+        (update-push-aclosure c :av "stage" 'body :av "condition" cond-val)
+)
+(aclosure c :attribute "axsem" :type "for statement" :stage 'body
+    :instance i
+    :ap i "statement" body
+    :do (update-push-aclosure c :av "stage" 'step)
+        (clear-update-eval-aclosure c :av "instance" body)
+    
+)
+(aclosure c :attribute "axsem" :type "for statement" :stage 'update
+    :instance i
+    :ap i "update" upd
+    :do (update-push-aclosure c :av "stage" 'after-update)
+        (clear-update-eval-aclosure c :av "instance" upd)
+)
+
+(aclosure c :attribute "axsem" :type "for statement" :stage 'after-step
+    :instance i
+    :env env
+    :agent a
+    :p (mot "inv plug" :av "num" (uid i)) loop-inv
+    :do (finalize-expression a)
+
+        ;; VC: Inv ∧ cond ∧ body ∧ step ⇒ Inv
+        (finalize-general-lemma a env loop-inv loop-inv)
+
+        ;; reset conditions
+        (aset a (aseq "cur cond") nil)
+
+        ;; Inv ∧ ¬cond
+        (cons-to-inner-list a (aseq "cur cond") loop-inv)
+
+        (update-push-aclosure c :av "stage" 'exit)
+)
+
+(aclosure c :attribute "axsem" :type "for statement" :stage 'exit
+    :instance i
+    :env env
+    :agent a
+    :ap "condition" cond-val
+    :p (mot "inv plug" :av "num" (uid i)) loop-inv
+    :do
+        (cons-to-inner-list a (aseq "cur cond")
+            (mo "unary operator"
+                :av "type" bool
+                :av "op" "!"
+                :av "value" cond-val
+                :av "actualized" t))
+
+        ;; mark processed
+        (cons-to-inner-list env (aseq "processed loops") (uid i))
+)
+
+
+
+#|
 (aclosure c :attribute "axsem" :type "wait" :stage nil 
     :instance i 
     :ap i "condition" cnd
@@ -1388,7 +1480,7 @@
 (aclosure c :attribute "axsem" :type "wait" :stage 'cnd 
     :instance i 
     :value cnd 
-    :do (clear-update-eval-aclosure c :av "instance" cnd :av "attribute" "actuate")
+    :do (clear-update-eval-aclosure c :av "instance" cnd :av "attribute" "actualize")
 )
 (aclosure c :attribute "axsem" :type "slice"
     :instance i nil)
@@ -1399,8 +1491,9 @@
         (update-push-aclosure c :av "stage" 'cnd)
         (clear-update-eval-aclosure c :av "instance" cnd))
     (match :av c "stage" 'cnd :av c "stage" 'actuated :ap c "agent" a :av a "value" cnd :do
-        (clear-update-eval-aclosure c :av "instance" cnd :av "attribute" "actuate"))
+        (clear-update-eval-aclosure c :av "instance" cnd :av "attribute" "actualize"))
 )
+|#
 
 (aclosure c :attribute "axsem" :type "state declaration" :stage nil 
     :instance i 
@@ -1441,10 +1534,10 @@
                 (let ((init-clone1 (iclone-agent env cagent))
                         (init-clone2 (iclone-agent env cagent))
                         (clone (iclone-agent env a)))
-                    (cons-to-inner-list init-clone1 (list "cur cond") (mo "unary operation" :av "type" bool :av "op" "!." :av "right" cnd :av "actuated" t))
+                    (cons-to-inner-list init-clone1 (list "cur cond") (mo "unary operation" :av "type" bool :av "op" "!." :av "right" cnd :av "actualized" t))
                     (update-push-aclosure c :av "stage" 'nothing :av "agent" init-clone1)
                     
-                    (cons-to-inner-list clone (aseq "cur cond") (mo "unary operation" :av "type" bool :av "op" "!." :av "right" cnd :av "actuated" t))
+                    (cons-to-inner-list clone (aseq "cur cond") (mo "unary operation" :av "type" bool :av "op" "!." :av "right" cnd :av "actualized" t))
                     (update-push-aclosure c :av "stage" 'nothing :av "agent" clone)
                     
                     (cons-to-inner-list init-clone2 (list "cur cond") cnd)
@@ -1461,7 +1554,7 @@
                         (init-clone2 (iclone-agent env cagent)))
                     (update-push-aclosure c :av "stage" 'nothing)
                     
-                    (cons-to-inner-list init-clone1 (list "cur cond") (mo "unary operation" :av "type" bool :av "op" "!." :av "right" cnd :av "actuated" t))
+                    (cons-to-inner-list init-clone1 (list "cur cond") (mo "unary operation" :av "type" bool :av "op" "!." :av "right" cnd :av "actualized" t))
                     (update-push-aclosure c :av "stage" 'nothing :av "agent" init-clone1)
                     
                     (cons-to-inner-list init-clone2 (list "cur cond") cnd)
@@ -1548,22 +1641,34 @@
     :ap "procs" procs 
     :do (if procs
             (progn
-                (update-push-aclosure c :av "stage" 'init-started)
+                (update-push-aclosure c :av "stage" 'started)
                 (clear-update-eval-aclosure c :av "instance" (car procs)))
             (update-push-aclosure c :av "stage" 'conclude)
         )
 )
-(aclosure c :attribute "axsem" :type "program declaration" :stage 'init-started
+(aclosure c :attribute "axsem" :type "program declaration" :stage 'started
     :instance i
     :agent a
     :ap a "processes to start" procs-to-start
     :do (if procs-to-start 
+            (update-push-aclosure c :av "stage" 'init-started :av "processes to start" procs-to-start)
             (let ((proc-name (car procs-to-start))) 
                 (push-aclosure c)
-                (eval-aclosure (aset (clear-aclosure c) 
+                (clear-update-eval-aclosure c
                     :av "attribute" "axsem init" 
-                    :av "instance" (car (member (lambda (process) (member (lambda (proc) (equal proc-name proc)) (procs-to-start))) (aget i "processes"))))))
+                    :av "instance" (car (member (lambda (process) (member (lambda (proc) (equal proc-name proc)) (procs-to-start))) (aget i "processes")))))
             (update-push-aclosure c :av "stage" 'work))
+)
+
+
+(aclosure c :attribute "axsem" :type "program declaration" :stage 'init-started
+    :instance i 
+    :ap i "processes" procs
+    :ap "processes to start" procs-to-start
+    :p (car procs-to-start) proc-name
+    :do (if procs-to-start
+            (progn (update-push-aclosure c :av "processes to start" (cdr procs-to-start))
+                (clear-update-eval-aclosure c :av "instance" (car (member proc-name procs :test #'string= :key (lambda (proc) (aget proc "name")))))))
 )
 (aclosure c :attribute "axsem" :type "program declaration" :stage 'conclude
     :instance i
@@ -1597,36 +1702,67 @@
 ;axsem decl
 (aclosure c :attribute "axsem decl" :type "constant declaration" :stage nil 
     :instance i 
+    :ap i "name" name
     :ap i "expression" expr
-    :do (update-push-aclosure c :av "stage" 'val)
-        (clear-update-eval-aclosure c :av "instance" expr)
+    :env env
+    :do (update-push-aclosure c :av "stage" 'init)
+        (clear-update-eval-aclosure c :av "instance" expr :av "attribute" "axsem")
 )
-(aclosure c :attribute "axsem decl" :type "constant declaration" :stage val 
+(aclosure c :attribute "axsem decl" :type "constant declaration" :stage 'init 
     :instance i 
     :ap i "name" name
     :value val 
-    :do (aset a (aseq "variable value" name) val))
-        
-(aclosure c :attribute "axsem decl" :type "simple variable declaration" :stage nil
+    :env env
+    :do (aset env (aseq "variable init" name) val))
+
+(aclosure c :attribute "axsem decl" :type "simple variable declaration" :stage nil 
     :instance i 
-    :ap i "init" init 
-    :ap i "type" rtype
     :ap i "name" name
-    :env env 
-    :do (aset env (aseq "variable init" name) (if init init (type-default-val env rtype)))
-        (aset env (aseq "variable type" name) rtype)
+    :ap i "expression" expr
+    :env env
+    :do (update-push-aclosure c :av "stage" 'init)
+        (clear-update-eval-aclosure c :av "instance" expr :av "attribute" "axsem")
+)
+(aclosure c :attribute "axsem decl" :type "simple variable declaration" :stage 'init 
+    :instance i 
+    :ap i "name" name
+    :ap i "restype" rtype
+    :value val 
+    :env env
+    :do (aset env (aseq "variable init" name) (if init init (type-default-val env rtype))))
+(aclosure c :attribute "axsem decl" :type "simple init" :stage nil 
+    :instance i 
+    :do (clear-update-eval-aclosure c :av "instance" i :av "attribute" "axsem")
 )
 
-(aclosure c :attribute "axsem decl" :type "array variable declaration" :stage nil
-    :instance i
-    :ap i "init" init 
-    :ap i "type" rtype 
-    :ap i "size" size
-    :ap i "name" name
+(aclosure c :attribute "axsem decl" :type "array variable declaration" :stage nil 
+    :instance i 
+    :ap i "init" init
     :env env
-    :do (aset env (aseq "variable init" name) (if init init (type-default-val env rtype)))
-        (aset env (aseq "variable type" name) rtype)
+    :do (update-push-aclosure c :av "stage" 'init)
+        (clear-update-eval-aclosure c :av "instance" init :av "attribute" "axsem")
 )
+(aclosure c :attribute "axsem decl" :type "array variable declaration" :stage 'init 
+    :instance i 
+    :ap i "name" name
+    :ap i "type" rtype
+    :ap i "init" init
+    :value val 
+    :env env
+    :do (aset env (aseq "variable init" name) (if init init (type-default-val env rtype))))
+(aclosure c :attribute "axsem decl" :type "array init" :stage nil 
+    :instance i 
+    :do (update-push-aclosure c :av "stage" 'exprs :av "collected" nil :av "exprs" (cdr i))
+        (clear-update-eval-aclosure c :av "attribute" "axsem" :av "instance" (car i)))
+(aclosure c :attribute "axsem decl" :type "array init" :stage 'exprs 
+    :value val 
+    :ap "exprs" exprs 
+    :ap "collected" col
+    :p (cons val col) new-col
+    :do (if exprs 
+            (progn (update-push-aclosure c :av "stage" 'exprs :av "collected" new-col :av "exprs" (cdr exprs))
+                (clear-update-eval-aclosure c :av "attribute" "axsem" :av "instance" (car exprs)))
+            (reverse col)))
 
 (aclosure c :attribute "axsem decl" :type "imported variable declaration"
     :instance i 
@@ -1662,17 +1798,54 @@
                 (aset env (aseq "struct types" name (aget field "name")) (aget field "type")))))
 )
 
-(aclosure c :attribute "axsem decl" :type "structure variable declaration"
+(aclosure c :attribute "axsem decl" :type "structure variable declaration" :stage nil 
     :instance i 
     :ap i "name" name
-    :ap i "type" rtype 
     :ap i "init" init
+    :ap i "type" rtype
     :env env
-    :do (aset env (aseq "variable type" name) rtype)
+    :do (update-push-aclosure c :av "stage" 'init)
         (if init 
-            (aset env (aseq "variable init" name) init)
-            (aset env (aseq "variable init" name) (type-default-val env rtype)))
+            (progn (update-push-aclosure c :av "stage" 'conclude)
+                (clear-update-eval-aclosure c :av "instance" init :av c "field list" (aget env (aseq "struct fields" name)) :av c "struct type" rtype))
+            (update-push-aclosure c :av "stage" 'conclude :av "value" (type-default-val env rtype)))
 )
+(aclosure c :attribute "axsem decl" :type "structure variable declaration" :stage 'conclude
+    :instance i 
+    :ap i "name" name
+    :ap i "type" rtype
+    :value val 
+    :env env
+    :do (aset env (aseq "variable init" name) val)
+)
+
+(aclosure c :attribute "axsem decl" :type "struct init" :stage nil
+    :instance i
+    :do (update-push-aclosure c :av "stage" 'inits :av "inits" (cdr i) :av "collected" (mot "value map") :av "field name" (aget (car i) "name"))
+        (update-eval-aclosure c :av "instance" (car i))
+)
+
+(aclosure c :attribute "axsem decl" :type "struct init" :stage 'inits
+    :value val
+    :ap "inits" inits
+    :ap "collected" col
+    :ap "field name" fname
+    :do 
+)
+
+(aclosure c :attribute "axsem decl" :type "struct field" :stage nil
+    :instance i
+    :ap i "name" fname
+    :ap i "init" init
+    :do (update-push-aclosure c
+          :av "stage" 'field-init
+          :av "field name" fname)
+        (clear-update-eval-aclosure c
+          :av "attribute" "axsem"
+          :av "instance" init))
+
+
+
 
 (aclosure c :attribute "axsem decl" :type "enum declaration" :stage nil
     :instance i 
@@ -1759,118 +1932,176 @@
 )
 
 
-;TODO axsem-init
+;axsem-init
 
-(aclosure c :attribute "axsem init" :type "simple variable declaration"
-    :instance i :do 
-    (match :av c "stage" nil :ap i "name" name :ap c "env" env :do 
-        (update-push-aclosure c :av "stage" 'val)
-        (clear-update-eval-aclosure c :av "instance" (aget env (aseq "variable init" name)) :av "attribute" "axsem"))
-    (match :av c "stage" 'val :ap c "agent" a :ap a "value" val :do 
-        (update-push-aclosure c :av "stage" 'val-act)
-        (clear-update-eval-aclosure c :av "instance" val :av "attribute" "actuate"))
-    (match :av c "stage" 'val-act :ap c "agent" a :ap a "value" val  :ap c "env" env :ap i "name" name :do 
-        (clear-agent-expr a)
-        (cons-to-inner-list c (aseq "cur cond") (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" "blank" :av "name" name :av "value" val )))
-)
-
-(aclosure c :attribute "opsem init" :type "array variable declaration"
+(aclosure c :attribute "axsem init" :type "simple variable declaration" :stage nil
     :instance i 
-    (match :av c "stage" nil :ap i "name" name :ap c "env" env :do 
-        (update-push-aclosure c :av "stage" 'to-init)
-        (clear-update-eval-aclosure c :av "attribute" "opsem" :av "instance" (aget env (aseq "variable init" name))))
-    (match :av c "stage" 'to-init :ap i "name" name :ap c "agent" a :ap a "value" val :do 
-            (aset a (aseq "variable value" name) val))
+    :ap i "name" name
+    :env env
+    :do (update-push-aclosure c :av "stage" 'val)
+        (if (aget env (aseq "variable init" name)) 
+            (clear-update-eval-aclosure c :av "instance" i :av "attribute" "axsem decl"))
+        (clear-update-eval-aclosure c :av "instance" (aget env (aseq "variable init" name)) :av "attribute" "axsem")
 )
 
-(aclosure c :attribute "axsem init" :type "array variable declaration"
+(aclosure c :attribute "axsem init" :type "simple variable declaration" :stage 'val
     :instance i 
-    (match :av c "stage" nil :ap i "name" name :ap c "env" env :do 
-        (update-push-aclosure c :av "stage" 'inits :av "inits" (aget env (aseq "variable init" name)) :av "index" 0))
-    (match :av c "stage" 'inits :ap c "inits" inits :do 
-        (if inits 
-            (let ((init (car inits)))
-                (update-push-aclosure c :av "stage" 'init :av "inits" (cdr inits))
-                (clear-update-eval-aclosure c :av "instance" init :av "attribute" "axsem"))
-            (update-push-aclosure c :av "stage" 'update)))
-    (match :av c "stage" 'init :ap c "agent" a :ap a "value" val :do 
-        (update-push-aclosure c :av "stage" 'init-act)
-        (clear-update-eval-aclosure c :av "instance" val :av "attribute" "actuate"))
-    (match :av c "stage" 'init-act :ap c "agent" a :ap a "value" val :ap i "name" name :ap c "env" env :ap c "vals" vals :do 
-        (update-push-aclosure c :av "stage" 'inits :av "vals" (cons val vals))
-        (clear-agent-expr a))
-    (match :av c "stage" 'update :ap i "name" name :ap c "vals" vals :do
-        (cons-to-inner-list a (aseq "cur cond")
-            (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" "blank" :av "name" name :av "value" (reverse vals))))
+    :value val
+    :do (update-push-aclosure c :av "stage" 'val-act)
+        (clear-update-eval-aclosure c :av "instance" val :av "attribute" "actualize")
 )
-
-;TODO
-(aclosure c :attribute "axsem init" :type "structure variable declaration"
+(aclosure c :attribute "axsem init" :type "simple variable declaration" :stage 'val-act
     :instance i 
-    (match :av c "stage" nil :ap i "name" name :ap c "env" env :do 
-        (let ((init (aget env (aseq "variable init" name))))
-            (update-push-aclosure c :av "stage" 'inits :av "inits" (attributes init) :av "init" init :av "index" 0)))
-    (match :av c "stage" 'inits :ap c "inits" inits :ap c "init" init :do 
-        (if inits 
-            (let* ((init-name (car inits))
-                    (init (aget init init-name)))
-                (update-push-aclosure c :av "stage" 'init)
-                (clear-update-eval-aclosure c :av "instance" init :av "attribute" "axsem"))
-            (update-push-aclosure c :av "stage" 'update)))
-    (match :av c "stage" 'init :ap c "agent" a :ap a "value" val :do 
-        (update-push-aclosure c :av "stage" 'init-act)
-        (clear-update-eval-aclosure c :av "instance" val :av "attribute" "actuate"))
-    (match :av c "stage" 'init-act :ap c "agent" a :ap a "value" val :ap i "name" name :ap c "env" env :ap c "vals" vals :ap c "inits" inits :do 
-        (update-push-aclosure c :av "stage" 'inits :av "inits" (cdr inits) :av "vals" (cons val vals))
-        (clear-agent-expr a))
-    (match :av c "stage" 'update :ap i "name" name :ap c "vals" vals :do
-        (cons-to-inner-list a (aseq "cur cond")
-            (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" "blank" :av "name" name :av "value" (reverse vals))))
+    :agent a 
+    :env env 
+    :value val 
+    :ap i "name" name
+    :p (mo "variable access" :av "name" name) access 
+    :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" "blank" :av "access" access :av "value" val) setter
+    :do (clear-agent-expr a)
+        (cons-to-inner-list c (aseq "cur cond") setter)
 )
 
+(aclosure c :attribute "axsem init" :type "array variable declaration" :stage nil
+    :instance i 
+    :ap i "name" name 
+    :env env 
+    :do (update-push-aclosure c :av "stage" 'init)
+        (if (aget env (aseq "variable init" name)) 
+                (clear-update-eval-aclosure c :av "instance" i :av "attribute" "axsem decl"))
+        (clear-update-eval-aclosure c :av "instance" (aget env (aseq "variable init" name)))
+)
+(aclosure c :attribute "axsem init" :type "array variable declaration" :stage 'init
+    :instance i 
+    :ap i "name" name 
+    :env env 
+    :agent a 
+    :value val 
+    :p (mo "variable access" :av "name" name) access 
+    :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" "blank" :av "access" access :av "value" val) setter
+    :do setter
+)
+(aclosure c :attribute "axsem init" :type "array init" :stage nil 
+    :instance i 
+    :do (update-push-aclosure c :av "stage" 'exprs :av "collected" nil :av "exprs" (cdr i))
+        (clear-update-eval-aclosure c :av "attribute" "axsem" :av "instance" (car i)))
+(aclosure c :attribute "axsem init" :type "array init" :stage 'exprs 
+    :value val 
+    :ap "exprs" exprs 
+    :ap "collected" col
+    :p (cons val col) new-col
+    :do (if exprs 
+            (progn (update-push-aclosure c :av "stage" 'exprs :av "collected" new-col :av "exprs" (cdr exprs))
+                (clear-update-eval-aclosure c :av "attribute" "axsem" :av "instance" (car exprs)))
+            (reverse col)))
+
+
+
+(aclosure c :attribute "axsem init" :type "structure variable declaration" :stage nil
+    :instance i
+    :ap i "name" name 
+    :env env  
+    :do (update-push-aclosure c :av "stage" 'init)
+        (if (aget env (aseq "variable init" name)) 
+                (clear-update-eval-aclosure c :av "instance" i :av "attribute" "axsem decl"))
+        (clear-update-eval-aclosure c :av "instance" (aget env (aseq "variable init" name)))
+)
+(aclosure c :attribute "axsem init" :type "structure variable declaration" :stage 'init
+    :instance i
+    :ap i "name" name 
+    :env env 
+    :agent a 
+    :value val 
+    :p (mo "variable access" :av "name" name) access 
+    :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" "blank" :av "access" access :av "value" val) setter
+    :do setter
+)
+(aclosure c :attribute "axsem init" :type "structure init" :stage nil
+    :instance i 
+    :p (attributes i) fields
+    :do (update-push-aclosure c :av "stage" 'fields :av "fields" (cdr fields) :av "collected" (cot "struct init") :av "current name" (car fields))
+        (clear-update-eval-aclosure c :av "instance" (aget i (car fields)))
+)
+(aclosure c :attribute "axsem init" :type "structure init" :stage 'fields
+    :instance i 
+    :ap "collected" col
+    :ap "fields" fields
+    :ap "current name" name
+    :value val
+    :do (if fields
+            (progn (update-push-aclosure c :av "stage" 'fields :av "fields" (cdr fields) :av "collected" (aset col name val) :av "current name" (car fields))
+                (clear-update-eval-aclosure c :av "instance" (aget i (car fields))))
+            col)
+)
 
 
 (aclosure c :attribute "axsem init" :type "enum variable declaration"
     :instance i 
-    (match :ap i "name" name :ap c "env" env :ap c "env" env :do 
-        (cons-to-inner-list c (aseq "cur cond") (mo "simple value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" "blank" :av "name" name :av "value" (aget env (aseq "variable init" name)) )))
+    :ap i "name" name 
+    :env env 
+    :p (mo "variable access" :av "name" name) access
+    :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" "blank" :av "access" :av "access" access :av "value" (aget env (aseq "variable init" name))) setter
+    :do (cons-to-inner-list c (aseq "cur cond") setter)
 )
 
-(aclosure c :attribute "axsem init" :type "process declaration"
+(aclosure c :attribute "axsem init" :type "process declaration" :stage nil 
     :instance i 
-    (match :av c "stage" nil :ap c "agent" a :ap c "env" env :ap i "name" name :ap i "variables" variables :do 
-        (aset a "process time" name 0)
-        (update-push-aclosure c :av "stage" 'init-vars :av "vars" variables))
+    :agent a 
+    :env env 
+    :ap i "name" name 
+    :ap i "variables" variables 
+    :do (aset a "process time" name 0)
+        (update-push-aclosure c :av "stage" 'init-vars :av "vars" variables)
+)
+(aclosure c :attribute "axsem init" :type "process declaration" :stage 'init-vars 
+    :instance i 
     (match :av c "stage" 'init-vars :ap c "vars" vars :do 
         (if vars
             (progn (update-push-aclosure c vars (cdr vars))
                 (clear-update-eval-aclosure c :av "instance" (car vars)))))
 )
 
-(mot "program declaration" 
-    :at "name" "program name" 
-    :atv "clock" "clock" 100
-    :at "declarations" (listt "program item declaration")
-    :at "processes" (listt "process declaration")
-)
+(aclosure c :attribute "axsem init" :type "node declaration" :stage nil 
+    :instance i 
+    :agent a 
+    :env env 
+    :ap i "name" name 
+    :ap i "variables" variables
+    :do (update-push-aclosure c :av "stage" 'init-vars :av "vars" variables))
+(aclosure c :attribute "axsem init" :type "node declaration" :stage nil 
+    :instance i 
+    :ap "vars" vars 
+    :do (if vars
+            (progn (update-push-aclosure c :av "vars" (cdr vars))
+                (clear-update-eval-aclosure c :av "instance" (car vars)))))
 
-(aclosure c :attribute "axsem init" :type "program declaration" :stage nil 
+(aclosure c :attribute "axsem init" :type "program declaration" :stage nil
     :instance i 
     :ap i "declarations" decls 
     :do (update-push-aclosure c :av "stage" 'decls :av "decls" decls)
 )
-(aclosure c :attribute "axsem init" :type "program declaration" :stage nil 
-    :ap "decls" decls 
+(aclosure c :attribute "axsem init" :type "program declaration" :stage 'decls
     :instance i 
-    :ap i "processes" procs
+    :ap "decls" decls
+    :ap i "nodes" nodes
     :do (if decls 
             (progn (update-push-aclosure c :av "decls" (cdr decls))
                 (clear-update-eval-aclosure c :av "instance" (car decls)))
-            (update-push-aclosure c :av "stage" 'procs :av "procs" procs))
+            (update-push-aclosure c :av "stage" 'nodes :av "nodes" nodes))       
 )
-(aclosure c :attribute "axsem init" :type "program declaration" :stage nil 
+(aclosure c :attribute "axsem init" :type "program declaration" :stage 'nodes
+    :instance i 
+    :ap "nodes" nodes
+    :ap i "processes" procs
+    :do (if nodes 
+            (progn (update-push-aclosure c :av "nodes" (cdr nodes))
+                (clear-update-eval-aclosure c :av "instance" (car nodes)))
+            (update-push-aclosure c :av "stage" 'procs :av "procs" (remove-if (lambda (el) (aget el "active")) procs)))       
+)
+(aclosure c :attribute "axsem init" :type "program declaration" :stage 'procs
+    :instance i 
     :ap "procs" procs 
-    :do (if decls 
-            (progn (update-push-aclosure c :av "decls" (cdr procs))
+    :do (if procs 
+            (progn (update-push-aclosure c :av "stage" 'procs :av "procs" (cdr procs))
                 (clear-update-eval-aclosure c :av "instance" (car procs))))
 )

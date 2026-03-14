@@ -75,7 +75,7 @@
         (mapc 
             (lambda (proc) (aset proc (aseq "analysis attributes" "group") (uid proc)))
             procs)
-        (eval-aclosure closure :av "attribute" "sets div" :av "hpc" (mo) :av "sets set" 
+        (update-eval-aclosure closure :av "attribute" "sets div" :av "instance" program :av "hpc" (mo) :av "sets set" 
             (list
                 (mapcar (lambda (proc) (aget proc "name")) (remove-if (lambda (proc) (aget proc (aseq "analysis attributes" "startS"))) procs))
                 (mapcar (lambda (proc) (aget proc "name")) (remove-if-not (lambda (proc) (aget proc (aseq "analysis attributes" "startS"))) procs))))
@@ -105,7 +105,7 @@
     ;return sets-set
     :at "value" any)
 
-(aclosure c "sets div" "reset timer" 
+(aclosure c :attribute "sets div"  :type "reset timer" 
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -113,7 +113,7 @@
     :p (aget i (aseq "analysis attributes" "procChange")) procChange
     :do (sets-div c sets-set hpc procChnage))
 
-(aclosure c "sets div" "set state" 
+(aclosure c :attribute "sets div" :type "set state" 
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -121,7 +121,7 @@
     :p (aget i (aseq "analysis attributes" "procChange")) procChange
     :do (sets-div c sets-set hpc procChnage))
 
-(aclosure c "sets div" "restart process" 
+(aclosure c :attribute "sets div" :type "restart process" 
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -129,7 +129,7 @@
     :p (aget i (aseq "analysis attributes" "procChange")) procChange
     :do (sets-div c sets-set hpc procChnage))
 
-(aclosure c "sets div" "start process" 
+(aclosure c :attribute "sets div" :type "start process" 
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -137,7 +137,7 @@
     :p (aget i (aseq "analysis attributes" "procChange")) procChange
     :do (sets-div c sets-set hpc procChnage))
 
-(aclosure c "sets div" "stop current process" 
+(aclosure c :attribute "sets div" :type "stop current process" 
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -145,7 +145,7 @@
     :p (aget i (aseq "analysis attributes" "procChange")) procChange
     :do (sets-div c sets-set hpc procChnage))
 
-(aclosure c "sets div" "stop process" 
+(aclosure c :attribute "sets div" :type "stop process" 
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -153,7 +153,7 @@
     :p (aget i (aseq "analysis attributes" "procChange")) procChange
     :do (sets-div c sets-set hpc procChnage))
 
-(aclosure c "sets div" "error current process" 
+(aclosure c :attribute "sets div" :type "error current process" 
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -161,7 +161,7 @@
     :p (aget i (aseq "analysis attributes" "procChange")) procChange
     :do (sets-div c sets-set hpc procChnage))
 
-(aclosure c "sets div" "error process" 
+(aclosure c :attribute "sets div" :type "error process" 
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -169,14 +169,14 @@
     :p (aget i (aseq "analysis attributes" "procChange")) procChange
     :do (sets-div c sets-set hpc procChnage))
 
-(aclosure c "sets div" "statement list" :stage nil
+(aclosure c :attribute "sets div" :type "statement list" :stage nil
     :instance i
     :ap "sets set" sets-set
     :ap "hpc" hpc
     :do (update-push-aclosure c :av "stage" 'rest :av "rest" (cdr i))
         (update-eval-aclosure c :av "instance" (car i))
 )    
-(aclosure c "sets div" "statement list" :stage 'rest
+(aclosure c :attribute "sets div" :type "statement list" :stage 'rest
     :instance i
     :ap "sets set" sets-set
     :ap "hpc" hpc
@@ -188,7 +188,7 @@
             val)
 )
 
-(aclosure c "sets div" "timeout statement"
+(aclosure c :attribute "sets div" :type "timeout statement"
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -202,7 +202,7 @@
 ;(mot "transition" :at "condition" "expression")
 ;(mot "transition on timeout" :at "condition" "expression" :at "controlling expression" "time amount or ref" :at "statements" "statement list")
 ;(mot "barrier statement" (uniont "wait" "slice" "transition" "transition on timeout"))
-(aclosure c "sets div" "if then statement"
+(aclosure c :attribute "sets div" :type "if then statement"
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -211,8 +211,7 @@
     :do (update-eval-aclosure c :av "instance" (aget i "then") :av "hpc" (first new-hpc-sets) :av "sets set" (second new-hpc-sets))
 
 )
-
-(aclosure c "sets div" "if then else statement" :stage nil
+(aclosure c :attribute "sets div" :type "if then else statement" :stage nil
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -221,7 +220,7 @@
     :do (update-push-aclosure c :av "stage" 'else :av "hpc" (first new-hpc-sets))
         (update-eval-aclosure c :av "instance" (aget i "then") :av "hpc" (first new-hpc-sets) :av "sets set" (second new-hpc-sets))
 )
-(aclosure c "sets div" "if then else statement" :stage 'else
+(aclosure c :attribute "sets div" :type "if then else statement" :stage 'else
     :instance i
     :agent a
     :ap "hpc" hpc
@@ -230,7 +229,7 @@
 )
 
 ;Предполагается что была проведена нормализация
-(aclosure c "sets div" "switch statement" :stage nil
+(aclosure c :attribute "sets div" :type "switch statement" :stage nil
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -239,7 +238,7 @@
     :do (update-push-aclosure c :av "stage" 'rest :av "hpc" (first new-hpc-sets) :av "rest" (cdr (aget i "cases")))
         (update-eval-aclosure c :av "instance" (car (aget i "cases")) :av "hpc" (first new-hpc-sets) :av "sets set" (second new-hpc-sets))
 )
-(aclosure c "sets div" "switch statement" :stage 'rest
+(aclosure c :attribute "sets div" :type "switch statement" :stage 'rest
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -254,7 +253,7 @@
                 val))
 )
 
-(aclosure c "sets div" "case statement"
+(aclosure c :attribute "sets div" :type "case statement"
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -262,7 +261,7 @@
     :p (sets-div c sets-set hpc procChnage) new-hpc-sets
     :do (update-eval-aclosure c :av "instance" (aget i "statements") :av "hpc" (first new-hpc-sets) :av "sets set" (second new-hpc-sets))
 )
-(aclosure c "sets div" "default statement"
+(aclosure c :attribute "sets div" :type "default statement"
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -270,7 +269,7 @@
     :p (sets-div c sets-set hpc procChnage) new-hpc-sets
     :do (update-eval-aclosure c :av "instance" (aget i "statements") :av "hpc" (first new-hpc-sets) :av "sets set" (second new-hpc-sets))
 )
-(aclosure c "sets div" "statement block"
+(aclosure c :attribute "sets div" :type "statement block"
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -279,7 +278,7 @@
     :do (update-eval-aclosure c :av "instance" (aget i "statements") :av "hpc" (first new-hpc-sets) :av "sets set" (second new-hpc-sets))
 )
 
-(aclosure c "sets div" "expression statement"
+(aclosure c :attribute "sets div" :type "expression statement"
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -287,7 +286,7 @@
     :do sets-set
 )
 
-(aclosure c "sets div" "state declaration"
+(aclosure c :attribute "sets div" :type "state declaration"
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -297,7 +296,7 @@
             (update-eval-aclosure c :av "instance" (aget i "statements") :av "hpc" (first new-hpc-sets) :av "sets set" (second new-hpc-sets)))
 )
 
-(aclosure c "sets div" "process declaration" :stage nil
+(aclosure c :attribute "sets div" :type "process declaration" :stage nil
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -307,7 +306,7 @@
             (update-push-aclosure c :av "stage" 'rest :av "hpc" (first new-hpc-sets) :av "rest" (cdr (aget i "states")))
             (update-eval-aclosure c :av "instance" (car (aget i "states")) :av "hpc" (first new-hpc-sets) :av "sets set" (second new-hpc-sets)))
 )
-(aclosure c "sets div" "process declaration" :stage 'rest
+(aclosure c :attribute "sets div" :type "process declaration" :stage 'rest
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -320,7 +319,7 @@
             val)
 )
 
-(aclosure c "sets div" "program declaration" :stage nil
+(aclosure c :attribute "sets div" :type "program declaration" :stage nil
     :instance i
     :agent a
     :ap "sets set" sets-set
@@ -329,7 +328,7 @@
             (update-push-aclosure c :av "stage" 'rest :av "hpc" (first new-hpc-sets) :av "rest" (cdr (aget i "processes")))
             (update-eval-aclosure c :av "instance" (car (aget i "processes")) :av "hpc" (first new-hpc-sets) :av "sets set" (second new-hpc-sets)))
 )
-(aclosure c "sets div" "program declaration" :stage 'rest
+(aclosure c :attribute "sets div" :type "program declaration" :stage 'rest
     :instance i
     :agent a
     :ap "sets set" sets-set

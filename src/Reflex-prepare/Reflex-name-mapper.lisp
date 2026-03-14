@@ -14,13 +14,14 @@
 (defun new-name (path name)
     (format nil "~a::~a"(format nil "~{~a~^.~}" (reverse path)) name))
 
-(defun new-phys-name (name pos)
+(defun new-indirect-name (name pos)
     (format nil "~a_~a" name pos))
 
-(defun form-direct (name num)
+(defun new-direct-name (name num)
     (format nil "~a.~a" name num))
 
 (defun block-name (num) (format nil "~a~a" "b" num))
+(defun sblock-name (num) (format nil "~a~a" "sb" num))
 
 (mot "env" 
 ;There used raw variable names
@@ -30,35 +31,15 @@
     :at "agents" (listt "agent")
     :at "aclosures" (cot :amap "agent" (listt (cot)))
 
-    :av "is global variable" (cot :amap "variable name" bool)
-    :av "is process variable" (cot :amap "process name" (cot :amap "variable name" bool))
-    :av "is global constant" (cot :amap "variable name" bool)
-    :av "is process constant" (cot :amap "process name" (cot :amap "variable name" bool))
-    :av "shared in process" (cot :amap "process name" (cot :amap "variable name" bool))
-    ;На практике в списке в лежит имя процесса и имя переменной
-    :av "shared variable" (cot :amap "process name" (cot :amap "variable name" (listt "name")))
-
-    :av "input variable port" (cot :amap "process name" (cot :amap "variable name" "port name"))
-    :av "output variable port" (cot :amap "process name"(cot :amap "variable name" "port name"))
-    :av "port variable" (cot :amap "process name" (cot :amap "variable name" (cot :amap "port name" int) ))
-
-    :av "input ports" (listt "port name")
-    :av "output ports" (listt "port name")
-
+    :av "node variables" (cot :amap "node name" (cot :amap "variable name" "variable name"))
+    :av "is direct" (cot :amap "variable name" bool)
 )
 
 (mot "agent" 
     :av "path" (listt string)
-    :av "block count" int 
     :av "variable map" (cot :amap "variable name" "variable name")
-    :av "is direct" (cot :amap "variable name" bool)
     :av "direct count" (cot :amap "variable name" int)
-    :av "node variables" (cot :amap "node name" (cot :amap "variable name" "variable name"))
-    :av "nodes processes" (cot :amap "node name" "process name")
 )
-
-(defun is-in-node (agent node process)
-    (member process (aget a (aseq "nodes processes" node)) :test #'string=))
 
 (defun mobject-union (obj1 obj2)
     (let ((uobj (mot (otype obj1))))
@@ -76,70 +57,55 @@
     :p (aget mp name) new-name
     :ap a (aseq "direct count" new-name) num
     :do (if (aget a (aseq "is direct" new-name))
-            (progn (aset i "name" (form-direct new-name num))
+            (progn (aset i "name" (new-direct-name new-name num))
                 (aset a (aseq "direct count" new-name) (+ num 1)))
             (aset i "name" new-name))
         (update-push-aclosure c :av "stage" 'accesses :av "accesses" accesses)
 )
-(aclosure с :attribute "map name" :type "element access" :stage 'acceesses
+(aclosure с :attribute "map name" :type "element access" :stage 'accesses
     :ap "accesses" accesses 
     :do (if accesses 
             (progn (update-push-aclosure с :av "accesses" (cdr accesses))
                 (clear-update-eval-aclosure c :av "instance" (car accesses)))))
 
-
-(mot "enum element access" :at "name" "enum name" :at "field" "field name")
-
-(mot "binary expression" :union ("+" "-" "*" "/" ">>" "<<" "==" "!=" ">=" "<=" ">" "<" "&&" "||" "&" "|" "^" "=" "+=" "-=" "*=" "/=" "<<=" ">>=" "&=" "|=" "^="))
-
 (aclosure c :attribute "map name" :type "binary operation"
     :instance i
     :ap i "left" left 
     :ap i "right" right
-    :do (clear-update-eval-aclosure c "instance" left)
-        (clear-update-eval-aclosure c "instance" right)
+    :do (clear-update-eval-aclosure c :av "instance" left)
+        (clear-update-eval-aclosure c :av "instance" right)
 )
-(aclosure c :attribute "map name" :type "cast"
+(aclosure c :attribute "map name" :type "unary operation"
     :instance i
     :ap i "expression" expr
-    :do (clear-update-eval-aclosure c "instance" expr)
-)
-(aclosure c :attribute "map name" :type "!."
-    :instance i
-    :ap i "expression" expr 
-    :do (clear-update-eval-aclosure c "instance" expr)
-)
-(aclosure c :attribute "map name" :type "-."
-    :instance i
-    :ap i "expression" expr 
-    :do (clear-update-eval-aclosure c "instance" expr)
-)
-(aclosure c :attribute "map name" :type "~."
-    :instance i 
-    :ap i "expression" expr 
-    :do (clear-update-eval-aclosure c "instance" expr)
+    :do (clear-update-eval-aclosure c :av "instance" expr)
 )
 
-(aclosure c :attribute "map name" :type "++."
+(aclosure c :attribute "map name" :type "prefix&postfix"
     :instance i 
     :ap i "access" access 
-    :do (clear-update-eval-aclosure c "instance" access)
+    :do (clear-update-eval-aclosure c :av "instance" access)
 )
-(aclosure c :attribute "map name" :type ".++"
-    :instance i 
-    :ap i "access" access 
-    :do (clear-update-eval-aclosure c "instance" access)
+
+(aclosure c :attribute "map name" :type "assignment operation"
+    :instance i
+    :agent a 
+    :ap a "variable map" mp
+    :ap i "left" access
+    :ap access "name" name 
+    :ap access "accesses" accesses 
+    :ap i "right" right
+    :p (aget mp name) new-name
+    :do (aset access "name" new-name)
+        (update-push-aclosure c :av "stage" 'accesses :av "accesses" accesses)
+        (clear-update-eval-aclosure c :av "instance" right)
 )
-(aclosure c :attribute "map name" :type "--."
-    :instance i 
-    :ap i "access" access 
-    :do (clear-update-eval-aclosure c "instance" access)
-)
-(aclosure c :attribute "map name" :type ".--"
-    :instance i 
-    :ap i "access" access 
-    :do (clear-update-eval-aclosure c "instance" access)
-)
+(aclosure с :attribute "map name" :type "assignment operation" :stage 'acceesses
+    :ap "accesses" accesses 
+    :do (if accesses 
+            (progn (update-push-aclosure с :av "accesses" (cdr accesses))
+                (clear-update-eval-aclosure c :av "instance" (car accesses)))))
+
 
 (aclsoure c :attribute "map name" :type "expression list" :stage nil
     :instance i 
@@ -158,18 +124,12 @@
 (aclosure c :attribute "map name" :type "timeout statement" :stage nil
     :instance i
     :ap i "controlling expression" expr 
-    :ap i "statements" sts
+    :ap i "statement" sts
     :agent a
     :ap a "variable map" mp
-    :do (update-push-aclosure c :av "stage" 'sts :av "sts" sts :av "variable map" mp)
-        (update-eval-aclosure c "instance" expr)
-)
-(aclosure c :attribute "map name" :type "timeout statement" :stage 'sts
-    :ap "sts" sts 
-    :do (if sts 
-            (progn (update-push-aclosure c :av "sts" (cdr sts))
-                (clear-update-eval-aclosure c :av "instance" (car sts)))
-            (update-push-aclosure c :av "stage" 'end))
+    :do (update-push-aclosure c :av "stage" 'end)
+        (update-eval-aclosure c :av "instance" sts)
+        (update-eval-aclosure c :av "instance" expr)
 )
 (aclosure c :attribute "map name" :type "timeout statement" :stage 'end
     :ap "variable map" mp
@@ -195,10 +155,8 @@
     :ap i "statements" sts
     :agent a
     :ap a "variable map" mp
-    :ap a "block count" bc
     :ap a "path" path
-    :do (aset a "path" (cons (block-name bc) path))
-        (aset a "block count" (+ bc 1))
+    :do (aset a "path" (cons (block-name (uid i)) path))
         (update-push-aclosure c :av "stage" 'end :av "variable map" mp)
         (clear-update-eval-aclosure c :av "instance" sts)
 )
@@ -213,7 +171,7 @@
 (aclosure c :attribute "map name" :type "wait"
     :instance i 
     :ap i "condition" expr 
-    :do (clear-update-eval-aclosure c "instance" expr)
+    :do (clear-update-eval-aclosure c :av "instance" expr)
 )
 
 (aclosure c :attribute "map name" :type "wait on timeout" :stage nil
@@ -221,17 +179,17 @@
     :ap i "condition" expr
     :ap i "controlling expression" cexpr
     :ap i "statements" sts
-    :do (clear-update-eval-aclosure c "instance" expr)
-        (clear-update-eval-aclosure c "instance" cexpr)
-        (clear-update-eval-aclosure c "instance" sts)
+    :do (clear-update-eval-aclosure c :av "instance" expr)
+        (clear-update-eval-aclosure c :av "instance" cexpr)
+        (clear-update-eval-aclosure c :av "instance" sts)
 )
 
 (aclosure c :attribute "map name" :type "if then statement"
     :instance i 
     :ap i "condition" expr 
     :ap c "then" then 
-    :do (update-eval-aclosure c "instance" expr)
-        (update-eval-aclosure c "instance" then)
+    :do (update-eval-aclosure c :av "instance" expr)
+        (update-eval-aclosure c :av "instance" then)
 )
 
 (aclosure c :attribute "map name" :type "if then else statement"
@@ -239,9 +197,9 @@
     :ap i "condition" cexpr 
     :ap c "then" then 
     :ap c "else" else 
-    :do (update-eval-aclosure c "instance" cexpr)
-        (update-eval-aclosure c "instance" then)
-        (update-eval-aclosure c "instance" else)
+    :do (update-eval-aclosure c :av "instance" cexpr)
+        (update-eval-aclosure c :av "instance" then)
+        (update-eval-aclosure c :av "instance" else)
 )
 
 (aclosure c :attribute "map name" :type "switch statement" :stage nil
@@ -251,14 +209,12 @@
     :ap i "default" default 
     :agent a
     :ap a "variable map" mp
-    :ap a "block count" bc
     :ap a "path" path
-    :do (aset a "path" (cons (block-name bc) path))
-        (aset a "block count" (+ bc 1))
+    :do (aset a "path" (cons (sblock-name (uid i)) path))
         (update-push-aclosure c :av "stage" 'end :av "variable map" mp)
         (update-push-aclosure c :av "stage" 'sts :av "sts" cs)
-        (clear-update-eval-aclosure c "instance" cexpr)
-        (clear-update-eval-aclosure c "instance" default)
+        (clear-update-eval-aclosure c :av "instance" cexpr)
+        (clear-update-eval-aclosure c :av "instance" default)
 )
 (aclosure c :attribute "map name" :type "switch statement" :stage 'sts
     :ap c "sts" sts 
@@ -289,7 +245,7 @@
 (aclosure c :attribute "map name" :type "expression statement"
     :instance i 
     :ap i "expression" expr 
-    :do (update-eval-aclosure c "instance" expr)
+    :do (update-eval-aclosure c :av "instance" expr)
 )
 
 ;Можно ли несолько eval подряд?
@@ -307,23 +263,6 @@
         (clear-update-eval-aclosure c :av "instance" upd)
         (clear-update-eval-aclosure c :av "instance" st))
 (aclosure c :attribute "map name" :type "for statement" :stage nil 
-    :ap "variable map" mp 
-    :do (aset a "variable map" mp))
-
-(aclosure c :attribute "map name" :type "for decl statement" :stage nil 
-    :instance i 
-    :ap i "init" init
-    :ap i "condition" cnd
-    :ap i "update" upd
-    :at i "statement" st
-    :agent a 
-    :ap a "variable map" mp 
-    :do (update-push-aclosure c :av "stage" 'end :av "variable map" mp)
-        (clear-update-eval-aclosure c :av "instance" init)
-        (clear-update-eval-aclosure c :av "instance" cnd)
-        (clear-update-eval-aclosure c :av "instance" upd)
-        (clear-update-eval-aclosure c :av "instance" st))
-(aclosure c :attribute "map name" :type "for decl statement" :stage nil 
     :ap "variable map" mp 
     :do (aset a "variable map" mp))
 
@@ -354,7 +293,7 @@
     :env env 
     :agent a
     :ap a "variable map" mp
-    :ap a (aseq "node variables" node) nmp
+    :ap env (aseq "node variables" node) nmp
     :do (aset a (aseq "variable map") (mobject-union mp nmp))
         (aset a "path" (cons name (cons node (aget a "path"))))
         (update-push-aclosure c :av "stage" 'end :av "variable map" mp)
@@ -429,7 +368,7 @@
     :ap i "port" port 
     :ap i "index" index
     :ap i "direct" direct
-    :ap (new-phys-name port index) nname
+    :ap (new-indirect-name port index) nname
     :do (aset i "name" nname)
         (aset a (aseq "variable map" name) nname)
         (aset a (aseq "is direct" nname) direct)
@@ -476,7 +415,8 @@
     :ap "variable map" omp
     :agent a 
     :ap a "variable map" mp
-    :ap a "node variables" nvars
+    :env env
+    :ap env "node variables" nvars
     :do (aset nvars name mp)
         (aset a "variable map" omp)
 )
@@ -544,15 +484,15 @@
     :ap "rest" rst 
     :ap i "processes" procs 
     :do (if rst 
-            (progn (update-push-aclosure c "rest" (cdr rst))
-                (clear-update-eval-aclosure c "instance" (car rst)))
+            (progn (update-push-aclosure c :av "rest" (cdr rst))
+                (clear-update-eval-aclosure c :av "instance" (car rst)))
             (update-push-aclosure c :av "stage" 'prepare-procs :av "rest" procs))
 )
 (aclosure c :attribute "map name decl" :type "program declaration" :stage 'prepare-procs
     :ap "rest" rst
     :do (if rst 
-            (progn (update-push-aclosure c "rest" (cdr rst))
-                (clear-update-eval-aclosure c "instance" (car rst))))
+            (progn (update-push-aclosure c :av "rest" (cdr rst))
+                (clear-update-eval-aclosure c :av "instance" (car rst))))
 )
 
 (aclosure c :attribute "map name" :type "program declaration" :stage nil 
@@ -565,6 +505,6 @@
     :ap "rest" rst
     :do (if rst 
             (progn (update-push-aclosure c :av "rest" (cdr rst))
-                (clear-update-eval-aclosure c "instance" (car rst))))
+                (clear-update-eval-aclosure c :av "instance" (car rst))))
 )
 |#

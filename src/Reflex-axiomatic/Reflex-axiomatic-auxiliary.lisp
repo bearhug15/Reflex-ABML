@@ -49,19 +49,26 @@
             (finalize-precond c a)
             (finalize-state a))))
 
-(defun create-lemma (a postcondition)
-    (mo "vc lemma" :av "precondition" (mo "inv plug") :av "postcondition" postcondition :av "steps" (reverse 
-        (progn (finalize-expression a)
-                (aget a "cur cond")))))
+(defun create-lemma (a precondition postcondition)
+    (progn (finalize-expression a)
+        (mo "vc lemma" :av "precondition" precondition :av "postcondition" postcondition :av "steps" (reverse (aget a "cur cond"))))
+)
 
 (defun finalize-lemma (a env postcondition)
-    (cons-to-inner-list env (aseq "conditions") (create-lemma a postcondition)))
+    (let* ((conds (reverse (aget a "cur cond")))
+            (lemma (mo "vc lemma" 
+                    :av "precondition" (if (is-instance (car conds) "inv plug") nil (mo "inv plug")) 
+                    :av "postcondition" postcondition 
+                    :av "steps" conds)))
+        (cons-to-inner-list env (aseq "conditions") lemma))
+)
 
-(defun finalize-base-lemma (a con)
-    (cons-to-inner-list env (aseq "conditions") (mo "vc lemma" :av "precondition" 'true :av "postcondition" (mo "inv plug") :av "steps" (reverse (aget a "cur cond")))))
+(defun finalize-base-lemma (a env)
+    (cons-to-inner-list env (aseq "conditions") (create-lemma a 'true (mo "inv plug"))))
 
-(defun finalize-general-lemma (a con)
-    (cons-to-inner-list env (aseq "conditions") (mo "vc lemma" :av "precondition" (mo "inv plug") :av "postcondition" (mo "inv plug") :av "steps" (reverse (aget a "cur cond")))))
+(defun finalize-general-lemma (a env precondition postcondition)
+    (cons-to-inner-list env (aseq "conditions") (create-lemma a postcondition postcondition)))
+
 
 (defun type-default-val (env ty)
     (cond 

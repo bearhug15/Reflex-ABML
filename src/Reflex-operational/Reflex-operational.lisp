@@ -11,27 +11,28 @@
     :at "input variables" (listt "variable name")
     :at "output variables" (listt "variable name")
     :at "variable init" (cot :amap "variable name" "reflex init")
+    :at "variable direct" (cot :amap "variable name" bool)
     :at "process states names" (cot :amap "process name" (listt "state name"))
-    :at "struct types" (cot :amap "structure name" "field name" "type")
-    :at "enum value" (cot :amap "enum name" "constant name" "int")
+    :at "struct types" (cot :amap "structure name" (cot :amap "field name" "type"))
+    :at "enum value" (cot :amap "enum name" (cot :amap "constant name" "int"))
     :atv "clock" nat 100
 )
 
 (mot "agent" 
     :at "variable value" (cot :amap "variable name" "reflex value")
     :at "process state" (cot :amap "process name" "state name")
-    :at "process state offset" (cot :amap "process name" "int")
     :at "process time" (cot :amap "process name" "natural constant")
     :at "current process" "process name"
     :at "current state" "state name"
-    :at "current offset" int
+    :at "process state offset" (mot :amap "process name" int)
     :at "processes to start" (listt "process name")
     :at "value" "reflex value"
 )
-(mot "reflex value" (uniont "defined value" "lvalue" ))
-(mot "defined value" (uniont "constant" "array value" "struct value"))
-(mot "struct value") (uniont (cot :amap "field name" "reflex value"))
-(mot "array value" (uniont (listt "reflex value")))
+
+(typedef "reflex value" (uniont "defined value" "lvalue" ))
+(typedef "defined value" (uniont "constant" "array value" "struct value"))
+(cot "struct value" :amap "field name" "reflex value")
+(typedef "array value" (listt "reflex value"))
 (mot "lvalue" :av "name" "string")
 
 (aclosure c :attribute "opsem" :type "time constant" :stage nil
@@ -59,8 +60,11 @@
     :agent a 
     :do (if (and (not (nil rst)) (> (length rst) 0)) 
             (update-push-aclosure c :av "stage" 'access :av "current" (car rst) :av "rest" (cdr rst) :av "values" (aget a (aseq "variable value" "name")))
-            (iobj "lvalue" :av name (aget i "name")))
+            (if (aget a (aseq "variable direct" name)) 
+                (mo "lvalue" :av "name" (aget i "name"))
+                (get-input-value name)))
 )
+
 (aclosure c :attribute "opsem" :type "element access" :stage 'access
     :instance i 
     :ap "current" cur
@@ -102,12 +106,10 @@
     :env env 
     :ap i "name" name 
     :ap i "field" fname
-    :do 
+    :do (aget env (aseq "enum values" name fname))
 )
 
-
-
-(mot "nondivision binary expressions" (uniont "+" "-" "*" "<<" ">>" "==" "!=" "<=" ">=" "<" ">" "|" "&" "^"))
+(typedef "nondivision binary expressions" (uniont "+" "-" "*" "<<" ">>" "==" "!=" "<=" ">=" "<" ">" "|" "&" "^"))
 
 (aclosure c :attribute "opsem" :type "nondivision binary expressions" :stage nil
     :instance i
@@ -122,7 +124,7 @@
     :do (progn (update-push-aclosure c :av "stage" 'right :av "left" left)
             (clear-update-eval-aclosure c :av "instance" right))
 )
-(aclosure c :attribute "opsem" :type "nondivision binary expressions" :stage 'left
+(aclosure c :attribute "opsem" :type "nondivision binary expressions" :stage 'right
     :instance i
     :agent a
     :ap "left" left
@@ -136,24 +138,24 @@
     :do (progn (update-push-aclosure c :av "stage" 'left)
             (clear-update-eval-aclosure c :av "instance" left))
 )
-(aclosure c :attribute "opsem" :type "/" :stage 'right
+(aclosure c :attribute "opsem" :type "/" :stage 'left
     :instance i
     :value left
     :ap i "right" right
     :do (progn (update-push-aclosure c :av "stage" 'right :av "left" left)
             (clear-update-eval-aclosure c :av "instance" right))
 )
-(aclosure c :attribute "opsem" :type "/" :stage 'left
+(aclosure c :attribute "opsem" :type "/" :stage 'rigth
     :instance i
     :agent a 
     :env env 
     :value right 
     :ap c "left" left
-    :do (let ((left (act left a))
-                (right (act right a)))
-            (if (= right 0)
+    :p (act left a) left
+    :p (act right a) right 
+    :do (if (= right 0)
                 (make-error env a "Division by zero")
-                (/ left right)))
+                (/ left right))
 )
 
 (aclosure c :attribute "opsem" :type "%" :stage nil
@@ -162,14 +164,14 @@
     :do (progn (update-push-aclosure c :av "stage" 'left)
             (clear-update-eval-aclosure c :av "instance" left))
 )
-(aclosure c :attribute "opsem" :type "/" :stage 'right
+(aclosure c :attribute "opsem" :type "%" :stage 'right
     :instance i
     :value left
     :ap i "right" right
     :do (progn (update-push-aclosure c :av "stage" 'right :av "left" left)
             (clear-update-eval-aclosure c :av "instance" right))
 )
-(aclosure c :attribute "opsem" :type "/" :stage 'left
+(aclosure c :attribute "opsem" :type "%" :stage 'left
     :instance i
     :agent a 
     :env env 
@@ -193,7 +195,8 @@
     :value val 
     :agent a
     :ap i "right" right
-    :do (if (= (act val a) 'false)
+    :p (act val a) left
+    :do (if (or (= left 'false) (= left 0) (= left 0.0))
             'false
             (clear-update-eval-aclosure c :av "instance" right))
 )
@@ -208,7 +211,8 @@
     :value val 
     :agent a
     :ap i "right" right
-    :do (if (= (act val a) 'true)
+    :p (act val a) left
+    :do (if (or (= left 'true) (/= left 0) (/= left 0.0))
             'true
             (clear-update-eval-aclosure c :av "instance" right))
 )
@@ -291,7 +295,7 @@
     :ap access "accesses" rst
     :do (let ((var (aget a (aseq "variable name" name))))
             (if (and (not (nil rst)) (> (length rst) 0)) 
-                (update-push-aclosure c :av "stage" 'access :av "current" (car rest) :av "rest" (cdr rest) :av "values" var :av "collected" nil :av "collected values" nil :av "res" (act val a))
+                (update-push-aclosure c :av "stage" 'access :av "current" (car rest) :av "rest" (cdr rest) :av "values" var :av "collected" nil :av "res" (act val a))
                 (progn
                     (aset a (aseq "variable name" name) (act val a))
                     (iobj "lvalue" :av name))))
@@ -301,13 +305,14 @@
     :ap "rest" rst 
     :ap "values" vals 
     :ap "collected" coll 
-    :ap "collected values" collval
+    :ap "res" res
     :do 
     (match :t cur "field name" :do 
         (let ((var (aget vals cur)))
             (if rst 
-                (update-push-aclosure c :av "stage" 'access :av "current" (car rst) :av "rest" (cdr rst) :av "values" var :av "collected" (cons cur coll) :av "collected values" (cons var collval))
-                (update-push-aclosure c :av "stage" 'unwind)))
+                (update-push-aclosure c :av "stage" 'access :av "current" (car rst) :av "rest" (cdr rst) :av "values" var :av "collected" (cons cur coll) )
+                (progn (aset a (aseql (cons "variable value" (reverse (cons act-val coll)))) res)
+                    res)))
     )               
     (match :t cur "expression" :do 
         (update-push-aclosure c :av "stage" 'access-act)
@@ -321,35 +326,17 @@
     :ap "rest" rst 
     :ap "values" vals 
     :ap "collected" coll 
-    :ap "collected values" collval
+    :ap "res" res
     :do (let *((act-val (act val a))
                 (var (nth act-val vals)))
             (if (and (<= 0 act-val) (< act-val (get-array-size env name (reverse coll))))
-                    (if rst 
-                        (update-push-aclosure c :av "stage" 'access :av "current" (car rest) :av "rest" (cdr rest) :av "values" var :av "collected" (cons act-val coll) :av "collected values" (cons var collval))
-                        (update-push-aclosure c :av "stage" 'unwind)
+                (if rst 
+                    (update-push-aclosure c :av "stage" 'access :av "current" (car rest) :av "rest" (cdr rest) :av "values" var :av "collected" (cons act-val coll))
+                    (progn (aset a (aseql (cons "variable value" (reverse (cons act-val coll)))) res)
+                        res))
                 (make-error env a "Array index out of bounds"))))
-)
-(aclosure c :attribute "opsem" :type "=" :stage 'unwind
-    :agent a
-    :instance i 
-    :value val
-    :ap "current" cur 
-    :ap "rest" rst 
-    :ap "values" vals 
-    :ap "collected" coll 
-    :ap "collected values" collval
-    :ap "res" res 
-    :ap i "left" access 
-    :ap access "variable" name 
-    :ap "fin" fin
-    :do (if coll 
-            (update-push-aclosure c :av "collected" (cdr coll) :av "collected values" (cdr collval) :av "res" (aset collval coll res))
-            (progn (aset a (aseq "variable name" name) res)
-                fin))
-)
 
-(mot "compaund assignment" (uniont "+=" "*=" "-=" "<<=" ">>=" "|=" "&=" "^="))
+(typedef "compaund assignment" (uniont "+=" "*=" "-=" "<<=" ">>=" "|=" "&=" "^="))
 
 (aclosure c :attribute "opsem" :type "compaund assignment" :stage nil
     :instance i 
@@ -378,14 +365,14 @@
     :ap "current" cur
     :ap "rest" rst 
     :ap "values" vals 
-    :ap "collected" coll 
-    :ap "collected values" collval
+    :ap "collected" coll
     :do 
     (match :t cur "field name" :do 
         (let ((var (aget vals cur)))
             (if rst 
                 (update-push-aclosure c :av "stage" 'access :av "current" (car rst) :av "rest" (cdr rst) :av "values" var :av "collected" (cons cur coll) :av "collected values" (cons var collval))
-                (update-push-aclosure c :av "stage" 'unwind :av "res" (def-comp-assign var res) :av "fin" (def-comp-assign var res))))
+                (progn (aset a (aseql (cons "variable value" (reverse (cons cur coll)))) (def-comp-assign i var res))
+                    (def-comp-assign i var res))))
     )               
     (match :t cur "expression" :do 
         (update-push-aclosure c :av "stage" 'access-act)
@@ -399,31 +386,14 @@
     :ap "rest" rst 
     :ap "values" vals 
     :ap "collected" coll 
-    :ap "collected values" collval
     :do (let ((act-val (act val a))
                 (var (nth act-val vals)))
             (if (and (<= 0 act-val) (< act-val (get-array-size env name (reverse coll))))
                 (if rest 
-                    (update-push-aclosure c :av "stage" 'access :av "current" (car rst) :av "rest" (cdr rst) :av "values" var :av "collected" (cons act-val coll) :av "collected values" (cons var collval))
-                    (update-push-aclosure c :av "stage" 'unwind :av "res" (def-comp-assign var res) :av "fin" (def-comp-assign var res)))
+                    (update-push-aclosure c :av "stage" 'access :av "current" (car rst) :av "rest" (cdr rst) :av "values" var :av "collected" (cons act-val coll))
+                    (progn (aset a (aseql (cons "variable value" (reverse (cons act-val coll)))) (def-comp-assign i var res))
+                        (def-comp-assign i var res)))
                 (make-error env a "Array index out of bounds")))
-)
-(aclosure c :attribute "opsem" :type "compaund assignment" :stage 'unwind
-    :instance i 
-    :agent a 
-    :value val
-    :ap "rest" rst 
-    :ap "values" vals 
-    :ap "collected" coll 
-    :ap "collected values" collval
-    :ap "res" res
-    :ap i "left" access 
-    :ap access "variable" name 
-    :ap "fin" fin
-    :do (if coll 
-            (update-push-aclosure c :av "collected" (cdr coll) :av "collected values" (cdr collval) :av "res" (aset collval coll res))
-            (progn (aset a (aseq "variable name" name) res)
-                fin))
 )
 
 #|
@@ -434,48 +404,68 @@ x[--y]/=y;
 при O1 - 0
 |#
 
-(aclosure c :attribute "opsem" :type "/="
+(aclosure c :attribute "opsem" :type "/=" :stage nil
     :instance i 
-    :do
-    (match :av c "stage" nil :ap i "right" right :do 
-        (progn (update-push-aclosure c :av "stage" 'right)
-            (clear-update-eval-aclosure c "instance" right)))
-    (match :av c "stage" 'right :ap c "agent" a :ap a "value" val :ap i "left" access :ap access "variable" name :ap access "accesses" rest :ap c "res" res :do 
-        (let ((var (aget a (aseq "variable name" name)))
-                (act-val ))
-            (if (and (not (nil rest)) (> (length rest) 0)) 
-                (update-push-aclosure c :av "stage" 'access :av "current" (car rest) :av "rest" (cdr rest) :av "values" var :av "collected" nil :av "collected values" nil :av "res" (act val a))
-                (progn
-                    (aset a (aseq "variable name" name) (act val a))
-                    (iobj "lvalue" :av name)))))
-    (match :av c "stage" 'access :ap c "current" cur :t cur "field name" :ap c "rest" rest :ap c "values" vals :ap c "collected" coll :ap c "collected values" collval :ap c "res" res :c "env" env :do 
+    :ap i "right" right
+    :do (update-push-aclosure c :av "stage" 'right)
+        (clear-update-eval-aclosure c "instance" right)
+)
+(aclosure c :attribute "opsem" :type "/=" :stage 'right
+    :instance i 
+    :agent a 
+    :value val 
+    :ap i "left" access 
+    :ap access "variable name" name
+    :ap access "accesses" rst 
+    :ap "res" res
+    :p (aget a (aseq "variable name" name)) var 
+    :do (if (and (not (nil rest)) (> (length rest) 0)) 
+            (update-push-aclosure c :av "stage" 'access :av "current" (car rst) :av "rest" (cdr rst) :av "values" var :av "collected" nil :av "collected values" nil :av "res" (act val a))
+            (progn
+                (aset a (aseq "variable name" name) (act val a))
+                (iobj "lvalue" :av name)))
+)
+(aclosure c :attribute "opsem" :type "/=" :stage 'access
+    :instance i 
+    :ap "current" cur 
+    :ap "rest" rst
+    :ap "values" vals 
+    :ap "collected" coll 
+    :ap "res" res 
+    :env env
+    :do  
+    (match :t cur "field name" :do 
         (let ((var (aget vals cur)))
             (if rest 
-                (update-push-aclosure c :av "stage" 'access :av "current" (car rest) :av "rest" (cdr rest) :av "values" var :av "collected" (cons cur coll) :av "collected values" (cons var collval))
+                (update-push-aclosure c :av "stage" 'access :av "current" (car rst) :av "rest" (cdr rst) :av "values" var :av "collected" (cons cur coll))
                 (if (= res 0) 
                     (make-error env a)
                     (update-push-aclosure c :av "stage" 'unwind :av "res" (/ var res) :av "fin" (/ var res)))))
     )               
-    (match :av c "stage" 'access :ap c "current" cur :t cur "expression" :do 
+    (match :t cur "expression" :do 
         (update-push-aclosure c :av "stage" 'access-act)
         (clear-update-eval-aclosure c :av "instance" cur))
-    (match :av c "stage" 'access-act :ap c "rest" rest :ap c "values" vals :ap c "agent" a :ap a "value" val :ap c "collected" coll :ap c "collected values" collval :ap c "res" res :do
-        (let ((act-val (act val a))
-                (var (nth act-val vals)))
-            (if (and (<= 0 act-val) (< act-val (get-array-size env name (reverse coll))))
-                (if rest 
-                    (update-push-aclosure c :av "stage" 'access :av "current" (car rest) :av "rest" (cdr rest) :av "values" var :av "collected" (cons act-val coll) :av "collected values" (cons var collval))
-                    (if (= res 0) 
-                        (make-error env a)
-                        (update-push-aclosure c :av "stage" 'unwind :av "res" (/ var res) :av "fin" (/ var res))))
-                (make-error env a "Array index out of bounds"))))
-    (match :av c "stage" 'unwind :ap c "rest" rest :ap c "values" vals :ap c "agent" a :ap a "value" val :ap c "collected" coll :ap c "collected values" collval :ap c "res" res 
-    :ap i "left" access :ap access "variable" name :ap c "fin" fin :do 
-        (if coll 
-            (update-push-aclosure c :av "collected" (cdr coll) :av "collected values" (cdr collval) :av "res" (aset collval coll res))
-            (progn (aset a (aseq "variable name" name) res)
-                fin)))
 )
+(aclosure c :attribute "opsem" :type "/=" :stage 'access-act
+    :instance i 
+    :ap "rest" rst 
+    :ap "values" vals 
+    :agent a 
+    :value val 
+    :ap "collected" coll  
+    :ap "res" res 
+    :p (act val a) act-val 
+    :p (nth act-val vals) var
+    :do (if (and (<= 0 act-val) (< act-val (get-array-size env name (reverse coll))))
+            (if rest 
+                (update-push-aclosure c :av "stage" 'access :av "current" (car rst) :av "rest" (cdr rst) :av "values" var :av "collected" (cons act-val coll))
+                (if (= res 0) 
+                    (make-error env a)
+                    (progn (aset a (aseql (cons "variable value" (reverse collected))) (/ var res))
+                        (/ var res))))
+            (make-error env a "Array index out of bounds"))
+)
+
 
 (aclosure c :attribute "opsem" :type "++."
     :instance i 
@@ -610,66 +600,69 @@ x[--y]/=y;
 )
 
 (aclosure c :attribute "opsem" :type "active" :stage nil
-    :instance i 
+    :ap "process" process
     :agent a
-    :do (and (not (equal (aget a (aseq "process state" process)) 'stop))
-            (not (equal (aget a (aseq "process state" process)) 'error)))
+    :do (and (not (equal (aget a (aseq "process state" process)) "stop"))
+            (not (equal (aget a (aseq "process state" process)) "error")))
 )
 (aclosure c :attribute "opsem" :type "inactive" :stage nil
-    :instance i 
+    :ap "process" process
     :agent a
-    :do (or (equal (aget a (aseq "process state" process)) 'stop)
-            (equal (aget a (aseq "process state" process)) 'error))
+    :do (or (equal (aget a (aseq "process state" process)) "stop")
+            (equal (aget a (aseq "process state" process)) "error"))
 )
 (aclosure c :attribute "opsem" :type "rstop" :stage nil
-    :instance i 
+    :ap "process" process
     :agent a
-    :do (equal (aget a (aseq "process state" process)) 'stop)
+    :do (equal (aget a (aseq "process state" process)) "stop")
 )
 (aclosure c :attribute "opsem" :type "rerror" :stage nil
-    :instance i 
+    :ap "process" process
     :agent a
-    :do (equal (aget a (aseq "process state" process)) 'error)
+    :do (equal (aget a (aseq "process state" process)) "error")
 )
 
 (aclosure c :attribute "opsem" :type "process state checking" :stage nil
     :instance i 
     :ap i "process" process 
     :ap i "activity" act 
-    :agent a
-    :do (clear-update-eval-aclosure c :av "instance" act)
+    :do (clear-update-eval-aclosure c :av "instance" act :av "process" process)
 )
 
-;Transformations: statements
 
-
-(aclosure c :attribute "opsem" :type "array init" 
+(aclosure c :attribute "opsem" :type "array init" :stage nil 
     :instance i 
-    :do 
-    (match :av c "stage" nil :do
-        (update-push-aclosure c :av "stage" 'idx :av "index" 1 :av "length" (length i))
-        (clear-update-eval-aclosure c "instance" (car i)))
-    (match :av c "stage" 'idx :ap c "index" index :ap c "length" len :ap c "agent" a :ap a "value" val :av "collected" collected :do 
-        (if (< index len)
-            (progn 
-                (update-push-aclosure c :av "index" (+ index 1) :av "collected" (cons (act val a) collected))
-                (clear-update-eval-aclosure c "instance" (nth index i)))
-            (cons (act val a) collected))))
+    :do (update-push-aclosure c :av "stage" 'exprs :av "exprs" (cdr i))
+        (clear-update-eval-aclosure c "instance" (car i))
+)
+(aclosure c :attribute "opsem" :type "array init" :stage 'exprs 
+    :ap "exprs" exprs
+    :do (if exprs 
+            (progn (update-push-aclosure :av "exprs" (cdr exprs))
+                (clear-update-eval-aclosure c "instance" (car exprs)))
+            (reverse exprs))
+)
 
-(aclosure c :attribute "opsem" :type "struct init" 
+
+(aclosure c :attribute "opsem" :type "struct init" :stage nil 
     :instance i 
-    :do
-    (match :av c "stage" nil :do 
-        (update-push-aclosure c :av "stage" 'fields :av "fields" (attributes i) :av "new init" (ob))
-        (clear-update-eval-aclosure c iob (aget i (car (attributes i)))))
-    (match :av c "stage" nil :ap c "fields" fields  :ap "new init" ninit :ap c "agent" a :ap a "value" val :do 
-        (if (> (length fields) 1)
+    :do (update-push-aclosure c :av "stage" 'fields :av "fields" (attributes i) :av "new init" (co "struct value"))
+        (clear-update-eval-aclosure c iob (aget i (car (attributes i))))
+)
+(aclosure c :attribute "opsem" :type "struct init" :stage nil 
+    :instance i 
+    :ap "fields" fields 
+    :ap "new init" ninit 
+    :value val  
+    :do (if (> (length fields) 1)
             (progn 
                 (update-push-aclosure c :av "fields" (cdr fields) :av "new init" (aset ninit (car fields) val))
                 (clear-update-eval-aclosure c iob (aget i (car (cdr fields)))))
             (aset ninit (car fields) val))
-    )        
-)
+)        
+
+
+;Transformations: statements
 
 
 
@@ -686,14 +679,9 @@ x[--y]/=y;
     :env env 
     :ap i "state" state 
     :ap a "current process" proc
-    :do (if state
-            (progn (aset a (aseq "process state" proc ) state)
-                (aset a (aseq "process state offset" proc ) nil)
-                (aset a (aseq "process time" proc ) 0))
-            (let ((res (next-process-state a env)))
-                (progn (aset a (aseq "process state" proc ) res)
-                    (aset a (aseq "process state offset" proc ) nil)
-                    (aset a (aseq "process time" proc ) 0))))
+    :do (aset a (aseq "process state" proc ) state)
+        (aset a (aseq "process time" proc ) 0)
+        (aset a (aseq "process state offset" proc ) nil)
 )
 
 (aclosure c :attribute "opsem" :type "restart process" :stage nil
@@ -759,27 +747,33 @@ x[--y]/=y;
                 :av "process time" proc 0))
 )
 
-(aclosure c :attribute "opsem" :type "statement list"
+(aclosure c :attribute "opsem" :type "statement list" :stage nil
     :instance i 
-    :do 
-    (match :av c "stage" nil :do 
-        (update-push-aclosure c :av "stage" 'rest :av "rest" (cdr i))
-        (clear-update-eval-aclosure c :av "instance" (car i)))
-    (match :av c "stage" 'rest :av c "rest" rst :do 
-        (if rst 
-            (progn (update-push-aclosure c :av "rest" (cdr rst))
-                (clear-update-eval-aclosure c :av "instance" (car rst))))))
+    :do (update-push-aclosure c :av "stage" 'rest :av "rest" (cdr i))
+        (clear-update-eval-aclosure c :av "instance" (car i))
+)
+(aclosure c :attribute "opsem" :type "statement list" :stage nil
+    :ap "rest" rst
+    :do (update-push-aclosure c :av "rest" (cdr rst))
+        (clear-update-eval-aclosure c :av "instance" (car rst))
+)
 
-(aclosure c :attribute "opsem" :type "if then else statement"
+(aclosure c :attribute "opsem" :type "if then else statement" :stage nil 
     :instance i 
-    :do 
-    (match :av c "stage" nil :ap i "condition" env :do
-        (progn (update-push-aclosure c :av "stage" 'condition)
-            (clear-update-eval-aclosure c :av "instance" con)))
-    (match :av c "stage" 'condition :ap i "then" then :ap i "else" else :ap c "agent" a :ap a "value" val :do
-        (if (= (act val a) 'true) 
+    :ap i "condition" env 
+    :do (update-push-aclosure c :av "stage" 'condition)
+        (clear-update-eval-aclosure c :av "instance" con)
+)
+(aclosure c :attribute "opsem" :type "if then else statement" :stage 'condition 
+    :instance i
+    :ap i "then" then 
+    :ap i "else" else
+    :agent a 
+    :value val 
+    :do (if (= (act val a) 'true)  
             (clear-update-eval-aclosure c :av "instance" then)
-            (clear-update-eval-aclosure c :av "instance" else))))
+            (clear-update-eval-aclosure c :av "instance" else))
+)
 
 (aclosure c :attribute "opsem" :type "if then statement"
     :instance i 
@@ -791,37 +785,33 @@ x[--y]/=y;
         (if (= (act val a) 'true)  
             (clear-update-eval-aclosure c :av "instance" then))))
 
-(aclosure c :attribute "opsem" :type "switch statement"
+(aclosure c :attribute "opsem" :type "switch statement" :stage nil 
     :instance i 
-    :do 
-    (match :av c "stage" nil :ap i "controlling expression" con :do 
-        (progn (update-push-aclosure c :av "stage" 'condition)
-            (clear-update-eval-aclosure c :av "instance" con)))
-    (match :av c "stage" 'condition :ap i "cases" cs :ap c "agent" a :ap a "value" val :do
-        (if cs 
-            (update-push-aclosure c :av "stage" 'case-label :av "val" (act val a) :av "index" 0 :av "length" (length cs))
-            (update-push-aclosure c :av "stage" 'default)))
-    (match :av c "stage" 'case-label :ap c "index" index :ap c "length" len :ap i "cases" cs :do 
-        (if (< index length)
-            (progn (update-push-aclosure c :av "stage" 'case-iter)
-                (clear-update-eval-aclosure c :av "instance" (aget (nth index cs) 'label)))
-            (update-push-aclosure c :av "stage" 'default)))
-    (match :av c "stage" 'case-iter :ap c "index" index :ap c "val" val :ap c "agent" a :ap a "value" label :ap i "cases" cs :do 
-        (if (= val label)
-            (progn 
-                (if (not (aget (nth index cs) 'break))
-                    (update-push-aclosure c :av "stage" 'cont-case-iter :av "index" (+ index 1))
-                    (clear-update-eval-aclosure c :av "instance" (aget (nth index cs)))))
-                (update-push-aclosure c :av "stage" 'case-label :av "index" (+ index 1))))
-    (match :av c "stage" 'cont-case-iter :ap c "index" index :ap i "cases" cs :ap c "length" len :do 
-        (if (< index len)
-            (progn (if (not (aget (nth index cs) 'break))
-                    (update-push-aclosure c index (+ index 1)))
-                (clear-update-eval-aclosure c :av "instance" (nth index cs)))
-            (update-push-aclosure c :av "stage" 'default)))
-    (match :av c "stage" 'default :ap i "default" def :do 
-        (if def 
-            (clear-update-eval-aclosure c :av "instance" def)))
+    :ap i "controlling expression" con
+    :ap i "cases" cases
+    :do (update-push-aclosure c :av "stage" 'condition :av "cases" cases)
+        (clear-update-eval-aclosure c :av "instance" con)
+)
+(aclosure c :attribute "opsem" :type "switch statement" :stage 'condition  
+    :value val 
+    :ap "cases" cases 
+    :agent a
+    :do (update-push-aclosure c :av "stage" 'case-label :av "val" (act val a)))
+(aclosure c :attribute "opsem" :type "switch statement" :stage 'case-lable  
+    :ap "val" val 
+    :ap "cases" cases 
+    :p (car cases) cs 
+    :do (if cases 
+            (if (equal (aget cs "label") val)
+                (clear-update-eval-aclosure c :av "instance" cs)
+                (update-push-aclosure c :av "cases" (cdr cases)))
+            (update-push-aclosure c :av "stage" 'default)) 
+)
+(aclosure c :attribute "opsem" :type "switch statement" :stage 'default
+    :instance i   
+    :ap i "default" def 
+    :do (if def 
+            (clear-update-eval-aclosure c :av "instance" def))
 )
 
 (aclosure c :attribute "opsem" :type "deafault statement" :stage nil
@@ -846,17 +836,55 @@ x[--y]/=y;
     :instance i 
     :do (clear-update-eval-aclosure c :av "instance" (aget i "expression")))
 
-(aclosure c :attribute "opsem" :type "timeout statement" 
+(aclosure c :attribute "opsem" :type "timeout statement"  :stage nil 
     :instance i 
-    :do 
-    (match :av c "stage" nil :av i "controlling expression" expr :do 
-        (update-push-aclosure c :av "stage" 'cond)
-        (clear-update-eval-aclosure c :av "instance" expr))
-    (match :av c "stage" 'cond :ap c "agent" a :ap a "value" val 
-        :ap a "current process" cur-proc :ap i "statements" sts :do 
-        (if (<= (act val a) (aget a (aseq "process time" cur-proc))
-            (clear-update-eval-aclosure c :av "instance" sts))))
+    :ap i "controlling expression" expr 
+    :do (update-push-aclosure c :av "stage" 'cond)
+        (clear-update-eval-aclosure c :av "instance" expr)
+) 
+(aclosure c :attribute "opsem" :type "timeout statement"  :stage nil 
+    :instance i 
+    :ap i "statements" sts
+    :agent a 
+    :ap a "current process" cur-proc
+    :value val
+    :do (if (<= (act val a) 
+            (aget a (aseq "process time" cur-proc))
+            (clear-update-eval-aclosure c :av "instance" sts)))
 )
+
+#|
+(mot "for expr statement" :at "init" "expression" :at "condition" "expression" :at "update" "expression" :at "statement" "statement")
+(mot "for decl statement" :at "init" "statement variable declaration" :at "condition" "expression" :at "update" "expression" :at "statement" "statement")
+(typedef "for statement" (uniont "for expr statement" "for decl statement"))
+|#
+
+(aclosure c :attribute "opsem" :type "for statement" :stage nil 
+    :insatnce i 
+    :ap i "init" init 
+    :do (update-push-aclosure c :av "stage" 'condition)
+        (clear-update-eval-aclosure c :av "instance" init))
+(aclosure c :attribute "opsem" :type "for statement" :stage 'condition 
+    :insatnce i 
+    :ap i "condition" cnd 
+    :do (update-push-aclosure c :av "stage" 'iter)
+        (clear-update-eval-aclosure c :av "instance" cnd)
+)
+(aclosure c :attribute "opsem" :type "for statement" :stage 'iter 
+    :insatnce i 
+    :value val
+    :ap i "statement" stm 
+    :do (if (equal val 'true) 
+            (progn (update-push-aclosure c :av "stage" 'update)
+                (clear-update-eval-aclosure c :av "instance" stm)))
+)
+(aclosure c :attribute "opsem" :type "for statement" :stage 'update 
+    :insatnce i 
+    :ap i "update" upd
+    :do (update-push-aclosure c :av "stage" 'condition)
+        (clear-update-eval-aclosure c :av "instance" upd)
+)
+
 
 (aclosure c :attribute "opsem" :type "wait" :stage nil
     :instance i 
@@ -864,78 +892,150 @@ x[--y]/=y;
 (aclosure c :attribute "opsem" :type "slice" :stage nil
     :instance i 
     :do nil)
-(aclosure c :attribute "opsem" :type "transition" :stage nil
+(aclosure c :attribute "opsem" :type "wait on timeout" :stage nil
     :instance i 
     :do (clear-update-eval-aclosure c :av "instance" (aget i "condition")))
 
-(aclosure c :attribute "opsem" :type "state declaration"
+
+;Declaratioins 
+
+(aclosure c :attribute "opsem" :type "statement variable declaration" :stage nil
     :instance i 
-    :do 
-    (match :av c "stage" nil :ap i "statements" sts :ap c "agent" a :ap a "current" substate substate :do 
-        (update-push-aclosure c :av "stage" 'statements :av "index" substate :av "length" (length sts)))
-    (match :av c "stage" 'statements :ap c "index" index :ap c "length" len :ap i "statements" sts :do 
-        (if (< index len)
-            (progn (if (is-instance (nth index sts) 'barrier statement)
-                        (update-push-aclosure c :av "stage" 'barrier :av "st" (nth index sts))
+    :do (clear-update-eval-aclosure c :av "attribute" "opsem init" :av "instance" i)
+)
+
+
+(aclosure c :attribute "opsem" :type "state declaration" :stage nil 
+    :instance i 
+    :ap i "statements" sts 
+    :agent a 
+    :ap a "current process" cur-proc
+    :p (aget a (aseq "process state offset" cur-proc)) offset
+    :do (update-push-aclosure c :av "stage" 'statements :av "index" offset :av "length" (length sts))
+)
+(aclosure c :attribute "opsem" :type "state declaration" :stage 'statements 
+    :instance i 
+    :ap "index" index 
+    :ap "length" len 
+    :ap i "statements" sts 
+    :do (if (< index len)
+            (progn (if (is-instance (nth index sts) "barrier statement")
+                        (update-push-aclosure c :av "stage" 'barrier)
                         (update-push-aclosure c :av "stage" 'statements :av "index" (+ index 1)))
-                (clear-update-eval-aclosure c :av "instance" (nth index sts)))))
-    (match :av c "stage" 'barrier :ap index "index" :ap c "length" len :ap i "statements" sts 
-        :ap c "st" st :t st wait :ap c "agent" a :ap a "value" val :do
-        (if val
-            (progn (update-push-aclosure c :av "stage" 'statements :av  index (+ index 1))
-                (aset a "process state offset" (aget a "current process") (+ index 1)))
+                (clear-update-eval-aclosure c :av "instance" (nth index sts))))
+)
+(aclosure c :attribute "opsem" :type "state declaration" :stage 'barrier 
+    :instance i
+    :ap "index" index 
+    :ap "length" len 
+    :ap i "statements" sts 
+    :ap (nth index sts) st 
+    :value val 
+    :agent a
+    :ap a "current process" cur-proc
+    :p (aget a (aseq "process state offset" cur-proc)) offset
+    :do (match :t st "slice"
+            :do (aset a (aseq "process state offset" cur-proc) (+ index 1))
+                (aset a (aseq "process time" cur-proc) 0))
+        (match :t st "wait"
+            :do (if (not (equal st (nth offset sts)))
+                    (aset a (aseq "process time" cur-proc) 0))
+                (if (equal val 'true)
+                    (progn (update-push-aclosure c :av "stage" 'statements :av  index (+ index 1))
+                        (aset a "process state offset" cur-proc (+ index 1)))
+                    (aset a "process state offset" cur-proc index)))
+        (match :t st "wait on timeout" :ap st "controlling expression" expr
+            :do (if (not (equal st (nth offset sts)))
+                    (aset a (aseq "process time" cur-proc) 0))
+                (if (equal val 'true)
+                    (progn (update-push-aclosure c :av "stage" 'statements :av  index (+ index 1))
+                        (aset a "process state offset" cur-proc (+ index 1)))
+                    (progn (update-push-aclosure c :av "stage" 'timeout)
+                        (clear-update-eval-aclosure c :av "instance" expr))))
+)
+(aclosure c :attribute "opsem" :type "state declaration" :stage 'timeout 
+    :instance i 
+    :ap i "statements" sts
+    :ap "index" index 
+    :value val 
+    :agent a 
+    :ap a "current process" cur-proc 
+    :p (aget a (aseq "process time" cur-proc)) proc-time 
+    :do (if (> val proc-time)
+            (progn (aset a "process state offset" (aget a "current process") index) 
+                (clear-update-eval-aclosure c :av "instance" sts))
             (aset a "process state offset" (aget a "current process") index)))
-    (match :av c "stage" 'barrier :ap index "index" :ap c "length" len :ap i "statements" sts 
-        :ap c "st" st :t st slice :ap c "agent" a :ap a "value" val :do
-        (aset a "process state offset" (aget a "current process") index))
-    (match :av c "stage" 'barrier :ap index "index" :ap c "length" len :ap i "statements" sts 
-        :ap c "st" st :t st transition :ap c "agent" a :ap a "value" val :do
-        (if (equal (aget a "current offset") index)
-            (if val
-                (progn (update-push-aclosure c :av "stage" 'statements :av "index" (+ index 1))
-                    (aset a "process state offset" (aget a "current process") (+ index 1)))
-                (aset a "process state offset" (aget a "current process") index))
-            (aset a "process state offset" (aget a "current process") index))))
+
+#|
+(aclosure c :attribute "opsem" :type "state declaration"
+    :instance 
+    :ap i "statements" sts
+    :ap i "name" name
+    :agent a
+    :do (aset a "current state" name)
+        (clear-update-eval-aclosure c :av "instance" sts))
+|#
 
 (aclosure c :attribute "opsem" :type "process declaration"
     :instance i 
-    :do
-    (match :av c "stage" nil :ap c "agent" a :ap i "name" name :ap i "states" states :ap c "env" env :do 
-        (let ((state (find-if (lambda state (equal (aget state "name") (aget a "current state"))) states)))
-            (aset a "current process" name)
-            (aset a "current state" (aget a (aseq "process state" name)))
-            (aset a "current offset" (aget a (aseq "process state offset" name)))
-            (if state 
-                (progn (clear-update-eval-aclosure c :av "instance" state)
-                    (aset a "process time" (+ (aget a (aseq "process time" name)) (aget env "clock"))))))))
+    :ap i "name" name
+    :ap i "states" states
+    :agent a 
+    :env env
+    :p (find-if (lambda state (equal (aget state "name") (aget a "current state"))) states) state
+    :do (aset a "current process" name)
+        (aset a "current state" (aget a (aseq "process state" name)))   
+        (if state 
+            (progn (clear-update-eval-aclosure c :av "instance" state)
+                (aset a "process time" (+ (aget a (aseq "process time" name)) (aget env "clock")))))
+)
 
-(aclosure c :attribute "opsem" :type "program declaration"
-    :instance i 
-    :do 
-    (match :av c "stage" nil :do 
-        (update-push-aclosure c :av "stage" 'init-input)
-    )
-    (match :av c "stage" 'init-input :ap c "input" input :ap c "agent" a :do 
-        (if input 
+(defun get-input-value (ty)
+    (random 100))
+
+(aclosure c :attribute "opsem" :type "program declaration" :stage nil
+    :env env 
+    :do (update-push-aclosure c :av "stage" 'init-input :av "input" (aget env "input variables"))
+)
+(aclosure c :attribute "opsem" :type "program declaration" :stage 'init-input
+    :instance i
+    :ap "input" input 
+    :agent a 
+    :env env
+    :do (if input 
             (progn
                 (update-push-aclosure c (cdr input))
-                (aset a "variable value" (car input) (random 100)))
-            (update-push-aclosure c :av "stage" 'work :av "index" 0 :av "length" (length (aget i "processes")))))
-    (match :av c "stage" work :ap c "index" index :ap c "length" len :ap c "agent" a :do 
-        (if (< index len)
-            (progn (update-push-aclosure c :av "index" (+ index 1))
-                (update-push-aclosure c :av "stage" 'init-started :av "index" 0 :av "length" (length (aget a "processes to start")))
-                (clear-update-eval-aclosure c :av "instance" (nth index (aget i "processes"))))
-            (update-push-aclosure c :av "stage" 'init-input :av "input" (aget env "input variables"))))
-    (match :av c "stage" 'init-started :ap c "index" index :ap c "length" len :ap c "agent" a :do 
-        (if (< index len)
-            (progn (update-push-aclosure c :av "index" (+ index 1))
+                (aset a "variable value" (car input) (get-input-value (aget env "variable type" (car input)))))
+            (update-push-aclosure c :av "stage" 'work :av "processes" (aget i "processes")))
+)
+(aclosure c :attribute "opsem" :type "program declaration" :stage 'work
+    :ap "processes" processes 
+    :p (car processes) proc
+    :agent a
+    :p (aget a (aseq "process state" (aget proc "name"))) proc-state
+    :do (if proc
+            (if (or (equal proc-state "stop") (equal proc-state "error"))
+                (update-push-aclosure c :av "processes" (cdr processes))
+                (progn (update-push-aclosure c :av "processes" (cdr processes))
+                    (update-push-aclosure c :av "stage" 'init-started)
+                    (clear-update-eval-aclosure c :av "instance" proc)))
+            (update-push-aclosure c :av "stage" 'init-input :av "input" (aget env "input variables")))
+)
+(aclosure c :attribute "opsem" :type "program declaration" :stage 'init-started 
+    :agent a 
+    :do (update-push-aclosure c :av "stage" 'init-started-procs :av "procs to start" (aget a "processes to start"))
+)
+(aclosure c :attribute "opsem" :type "program declaration" :stage 'init-started-procs
+    :instance i
+    :ap "procs to start" procs-to-start 
+    (if procs-to-start 
+        (progn (update-push-aclosure c :av "index" (cdr procs-to-start))
                 (clear-update-eval-aclosure c
                     :av "attribute" "opsem init" 
                     :av "instance" (find-if 
-                                (lambda process (equal (aget process "name") (nth index (aget a "processes to start")))) 
+                                (lambda (process) (equal (aget process "name") (car procs-to-start))) 
                                 (aget i "processes"))))
-            (aset a (aseq "processes to start") nil)))    
+        (aset a (aseq "processes to start") nil)) 
 )
 
 (aclosure c :attribute "opsem prepare" :type "program declaration" 
@@ -1100,66 +1200,167 @@ x[--y]/=y;
 
 ;opsem init
 
-(aclosure c :attribute "opsem init" :type "simple variable declaration"
+(aclosure c :attribute "opsem init" :type "statement variable declaration" :stage nil
     :instance i 
-    :do 
-    (match :av c "stage" nil :ap i "name" name :ap c "env" env :do 
-        (update-push-aclosure c :av "stage" 'inited)
-        (clear-update-eval-aclosure c :av "attribute" "opsem" :av "instance" (aget env (aseq "variable init" name))))
-    (match :av c "stage" 'inited :ap c "agent" a :ap a "value" val :do 
-        (aset a (aseq "variable value" name) val))
-
+    :ap i "name" name 
+    :env env 
+    :do (update-push-aclosure c :av "stage" 'inited)
+        (clear-update-eval-aclosure c :av "attribute" "opsem" :av "instance" (aget env (aseq "variable init" name)))
 )
-(aclosure c :attribute "opsem init" :type "array variable declaration"
+(aclosure c :attribute "opsem init" :type "statement variable declaration" :stage 'inited
     :instance i 
-    :do 
-    (match :av c "stage" nil :ap i "name" name :ap c "env" env :do 
-        (update-push-aclosure c :av "stage" 'to-init)
-        (clear-update-eval-aclosure c :av "attribute" "opsem" :av "instance" (aget env (aseq "variable init" name))))
-    (match :av c "stage" 'to-init :ap i "name" name :ap c "agent" a :ap a "value" val :do 
-            (aset a (aseq "variable value" name) val))
+    :ap i "name" name 
+    :value val 
+    :agent a
+    :do (aset a (aseq "variable value" name) val)
 )
-
-(aclosure c :attribute "opsem init" :type "structure variable declaration"
+(aclosure c :attribute "opsem init" :type "simple init" :stage nil 
     :instance i 
-    :do 
-    (match :av c "stage" nil :ap i "name" name :ap c "env" env :ap i "type" rtype :do 
-        (let ((init (aget env (aseq "variable init" name))))
-            (update-push-aclosure c :av "stage" 'inited)
-            (clear-update-eval-aclosure c "instance" name)))
-    (match :av c "stage" 'inited :ap i "name" name :ap c "agent" a :ap a "value" val :do 
-        (aset a (aseq "variable value" name) val))
+    :do (clear-update-eval-aclosure c :av "attribute" "opsem" :av "instance" i))
+
+
+(aclosure c :attribute "opsem init" :type "array variable declaration" :stage nil
+    :instance i 
+    :ap i "name" name 
+    :env env 
+    :do (update-push-aclosure c :av "stage" 'init)
+        (clear-update-eval-aclosure c :av "instance" (aget env (aseq "variable init" name)))
+)
+(aclosure c :attribute "opsem init" :type "array variable declaration" :stage 'init
+    :instance i 
+    :ap i "name" name 
+    :env env 
+    :agent a 
+    :value val 
+    :do (aset a (aseq "variable value" name) val)
+)
+(aclosure c :attribute "opsem init" :type "array init" :stage nil 
+    :instance i 
+    :do (update-push-aclosure c :av "stage" 'exprs :av "collected" nil :av "exprs" (cdr i))
+        (clear-update-eval-aclosure c :av "attribute" "opsem" :av "instance" (car i)))
+(aclosure c :attribute "opsem init" :type "array init" :stage 'exprs 
+    :value val 
+    :ap "exprs" exprs 
+    :ap "collected" col
+    :p (cons val col) new-col
+    :do (if exprs 
+            (progn (update-push-aclosure c :av "stage" 'exprs :av "collected" new-col :av "exprs" (cdr exprs))
+                (clear-update-eval-aclosure c :av "attribute" "opsem" :av "instance" (car exprs)))
+            (reverse col)))
+
+
+(aclosure c :attribute "opsem init" :type "structure variable declaration" :stage nil
+    :instance i
+    :ap i "name" name 
+    :env env  
+    :do (update-push-aclosure c :av "stage" 'init)
+        (clear-update-eval-aclosure c :av "instance" (aget env (aseq "variable init" name)))
+)
+(aclosure c :attribute "opsem init" :type "structure variable declaration" :stage 'init
+    :instance i
+    :ap i "name" name 
+    :env env 
+    :agent a 
+    :value val 
+    :do (aset a (aseq "variable value" name) val)
+)
+(aclosure c :attribute "opsem init" :type "structure init" :stage nil
+    :instance i 
+    :p (attributes i) fields
+    :do (update-push-aclosure c :av "stage" 'fields :av "fields" (cdr fields) :av "collected" (cot "struct init") :av "current name" (car fields))
+        (clear-update-eval-aclosure c :av "instance" (aget i (car fields)))
+)
+(aclosure c :attribute "opsem init" :type "structure init" :stage 'fields
+    :instance i 
+    :ap "collected" col
+    :ap "fields" fields
+    :ap "current name" name
+    :value val
+    :do (if fields
+            (progn (update-push-aclosure c :av "stage" 'fields :av "fields" (cdr fields) :av "collected" (aset col name val) :av "current name" (car fields))
+                (clear-update-eval-aclosure c :av "instance" (aget i (car fields))))
+            col)
 )
 
 (aclosure c :attribute "opsem init" :type "enum variable declaration" :stage nil
     :instance i 
     :ap i "name" name 
+    :env env  
+    :do (update-push-aclosure c :av "stage" 'init)
+        (clear-update-eval-aclosure c :av "attribute" "opsem" :av "instance" (aget env (aseq "variable init" name)))
+)
+(aclosure c :attribute "opsem init" :type "enum variable declaration" :stage 'init
+    :instance i
+    :ap i "name" name 
     :env env 
-    :do (aset a (aseq "variable value" name) (aget env (aseq "variable init" name)))
+    :agent a 
+    :value val 
+    :do (aset a (aseq "variable value" name) val)
+)
+(aclosure c :attribute "opsem init" :type "enum element access" :stage nil 
+    :instance i 
+    :do (clear-update-eval-aclosure c :av "attribute" "opsem" :av "instance" i))
+
+(aclosure c :attribute "opsem init" :type "process declaration" :stage nil 
+    :instance i 
+    :agent a 
+    :env env 
+    :ap i "name" name 
+    :ap i "variables" variables
+    :do (aset a (aseq "process time" name) 0)
+        (aset a (aseq "process state" name) (first-state env name))
+        (aset a (aseq "process state offset" proc ) nil)
+        (update-push-aclosure c :av "stage" 'init-vars :av "vars" variables)
+)
+(aclosure c :attribute "opsem init" :type "process declaration" :stage 'init-vars 
+    :instance i 
+    :ap "vars" vars 
+    :do (if vars
+            (progn (update-push-aclosure c :av "vars" (cdr vars))
+                (clear-update-eval-aclosure c :av "instance" (car vars))))
 )
 
-(aclosure c :attribute "opsem init" :type "process declaration"
+(aclosure c :attribute "opsem init" :type "node declaration" :stage nil 
     :instance i 
-    :do 
-    (match :av c "stage" nil :ap c "agent" a :ap c "env" env :ap i "name" name :ap i "variables" variables :do 
-        (aset a (aseq "process time" name ) 0)
-        (aset a (aseq "process state" name) (first-state env name))
-        (aset a (aseq "process state offset" name ) 0)
-        (update-push-aclosure c :av "stage" 'init vars :av "vars" variables))
-    (match :av c "stage" 'init vars :ap c "vars" vars :do 
-        (if vars
+    :agent a 
+    :env env 
+    :ap i "name" name 
+    :ap i "variables" variables
+    :do (update-push-aclosure c :av "stage" 'init-vars :av "vars" variables))
+(aclosure c :attribute "opsem init" :type "node declaration" :stage nil 
+    :instance i 
+    :ap "vars" vars 
+    :do (if vars
             (progn (update-push-aclosure c :av "vars" (cdr vars))
                 (clear-update-eval-aclosure c :av "instance" (car vars)))))
-)
 
-(aclosure c :attribute "opsem init" :type "program declaration"
+(aclosure c :attribute "opsem init" :type "program declaration" :stage nil
     :instance i 
-    :do 
-    (match :av c "stage" nil :ap i "declarations" decls :do 
-        (update-push-aclosure c :av "stage" 'decls :av "decls" decls))
-    (match :av c "stage" decls :ap c "decls" decls :do 
-        (if decls 
+    :ap i "declarations" decls 
+    :do (update-push-aclosure c :av "stage" 'decls :av "decls" decls)
+)
+(aclosure c :attribute "opsem init" :type "program declaration" :stage 'decls
+    :instance i 
+    :ap "decls" decls
+    :ap i "nodes" nodes
+    :do (if decls 
             (progn (update-push-aclosure c :av "decls" (cdr decls))
                 (clear-update-eval-aclosure c :av "instance" (car decls)))
-            (clear-update-eval-aclosure c :av "instance" (aget i processes 1))))        
+            (update-push-aclosure c :av "stage" 'nodes :av "nodes" nodes))       
+)
+(aclosure c :attribute "opsem init" :type "program declaration" :stage 'nodes
+    :instance i 
+    :ap "nodes" nodes
+    :ap i "processes" procs
+    :do (if nodes 
+            (progn (update-push-aclosure c :av "nodes" (cdr nodes))
+                (clear-update-eval-aclosure c :av "instance" (car nodes)))
+            (update-push-aclosure c :av "stage" 'procs :av "procs" (remove-if (lambda (el) (aget el "active")) procs)))       
+)
+(aclosure c :attribute "opsem init" :type "program declaration" :stage 'procs
+    :instance i 
+    :ap "procs" procs 
+    :do (if procs 
+            (progn (update-push-aclosure c :av "stage" 'procs :av "procs" (cdr procs))
+                (clear-update-eval-aclosure c :av "instance" (car procs))))
 )

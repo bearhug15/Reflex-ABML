@@ -6,7 +6,6 @@
 (mot "analysis env"
     :at "agents" (listt "analysis agent")
     :at "aclosures" (cot :amap "agent" (listt cot)))
-    :at "process state names" (cot :amap "process name" (listt "state name"))
 
 (mot "analysis agent"
     :at "current process" "process name"
@@ -22,21 +21,21 @@
     :at "reset" bool 
     :at "state changed" bool 
     :at "reach from" (listt "state name")
-    :at "changes to" (listt "state name"))
+    :at "reach to" (listt "state name"))
 
 
 
-(aclosure c :attribute "attributes prepare" :type "reset timer"
+(aclosure c :attribute "attribute prepare" :type "reset timer"
     :do (mo "attributes" :av "reset" t))
 
-(aclosure c :attribute "attributes prepare" :type "set state"
+(aclosure c :attribute "attribute prepare" :type "set state"
     :instance i
     :agent a
     :env env 
     :ap i "state" state
     :do (mo "attributes" 
             :av "reset" t
-            :av "changes to" 
+            :av "reach to" 
                 (if (null state)
                     (list (next-process-state agent env))
                     (list state)))
@@ -52,7 +51,7 @@
             :av "process change" (mo cur-proc 'start)
             :av "pot process change" (list (co :av "process" cur-proc :av "change" 'start))
             :av "reset" t
-            :av "changes to" (if (not cur-fstate) (list fstate))
+            :av "reach to" (if (not cur-fstate) (list fstate))
             :av "state changed" (not cur-fstate))
 )
 (aclosure c :attribute "attribute prepare" :type "start process"
@@ -77,7 +76,7 @@
             :av "process change" (mo :av cur-proc 'stop)
             :av "pot process change" (list (co :av "process" cur-proc :av "change" 'stop))
             :av "reset" t
-            :av "changes to" (list "stop")
+            :av "reach to" (list "stop")
             :av "state changed" t)
 )
 (aclosure c :attribute "attribute prepare" :type "stop process"
@@ -99,7 +98,7 @@
             :av "process change" (mo :av cur-proc 'error)
             :av "pot process change" (list (co :av "process" cur-proc :av "change" 'error))
             :av "reset" t
-            :av "changes to" (list "error")
+            :av "reach to" (list "error")
             :av "state changed" t)    
 )
 (aclosure c :attribute "attribute prepare" :type "error process"
@@ -132,53 +131,47 @@
             (add-cons-attributes cattr val))
 )
 
-(aclosure c :attribute "attributes prepare" :type "timeout statement" :stage
+(aclosure c :attribute "attribute prepare" :type "timeout statement" :stage
     :instance i 
     :ap i "statements" sts
     :do (update-push-aclosure c :av "stage" 'sts )
         (clear-update-eval-aclosure c :av "instance" sts)
 )
-(aclosure c :attribute "attributes prepare" :type "timeout statement" :stage
+(aclosure c :attribute "attribute prepare" :type "timeout statement" :stage
     :instance i 
     :value val 
     :p (add-par-attributes-conc (add-par-attributes (mo "attributes") val)) res 
     :do (aset i "analysis attributes" res)
         res
 )
-#|
-(mot "wait" :at "condition" "expression")
-(mot "slice")
-(mot "transition" :at "condition" "expression")
-(mot "barrier statement" (uniont "wait" "slice" "transition"))
-|#
 
-(aclosure c :attribute "attributes prepare" :type "if then statement" :stage nil
+(aclosure c :attribute "attribute prepare" :type "if then statement" :stage nil
     :instance i 
     :ap i "then" sts
     :do (update-push-aclosure c :av "stage" 'then)
         (clear-update-eval-aclosure c :av "instance" sts)
 )
-(aclosure c :attribute "attributes prepare" :type "if then statement" :stage 'then
+(aclosure c :attribute "attribute prepare" :type "if then statement" :stage 'then
     :instance i
     :value val 
     :p (add-par-attributes-conc (add-par-attributes (mo "attributes") val)) res
     :do (aset i "analysis attributes" res)
         res
 )
-(aclosure c :attribute "attributes prepare" :type "if then else statement" :stage nil 
+(aclosure c :attribute "attribute prepare" :type "if then else statement" :stage nil 
     :instance i 
     :ap i "then" sts
     :do (update-push-aclosure c :av "stage" 'then)
         (clear-update-eval-aclosure c :av "instance" sts)
 )
-(aclosure c :attribute "attributes prepare" :type "if then else statement" :stage 'then 
+(aclosure c :attribute "attribute prepare" :type "if then else statement" :stage 'then 
     :instance i
     :value val 
     :ap i "else" sts
     :do (update-push-aclosure c :av "stage" 'else :av "then" val)
         (clear-update-eval-aclosure c :av "instance" sts)
 )
-(aclosure c :attribute "attributes prepare" :type "if then else statement" :stage 'then 
+(aclosure c :attribute "attribute prepare" :type "if then else statement" :stage 'then 
     :instance i
     :value val 
     :ap "then" then
@@ -190,91 +183,64 @@
 (aclosure c :attribute "attribute prepare" :type "switch statement" :stage nil 
     :instance i 
     :ap i "cases" css 
-    :do (update-push-aclosure c :av "stage" 'conclude)
-        (update-push-aclosure c :av "stage" 'default)
-        (if css
-            (update-push-aclosure c :av "stage" 'cases-label :av "cases" css))
-)
+    :do (if css
+            (update-push-aclosure c :av "stage" 'cases-label :av "cases" (cdr css) :av "current" (car css))
+            (clear-update-eval-aclosure c :av "instance" (car css))))
+
 (aclosure c :attribute "attribute prepare" :type "switch statement" :stage 'cases-label 
     :instance i 
-    :ap "cases" css 
-    :do (if css 
-            (progn 
-                (update-push-aclosure c :av "stage" 'case-label :av "cases" (cdr css))
-                (update-push-aclosure c :av "stage" 'case-iter-true :av "cases")
-                (clear-update-eval-aclosure c :av "instance" (car css))
-                )
-            (update-push-aclosure c :av "stage" 'default))
-)
-(aclosure c :attribute "attribute prepare" :type "switch statement" :stage 'case-iter-true 
-    :instance i 
-    :ap "cases" css
-    :p (car css) cs
+    :av i "default" def
     :value val 
-    :do (if (aget cs "break")
-            (cons-to-inner-list c (list "agent" "collector") val)
-            (progn (update-push-aclosure c :av "stage" 'cont-case-iter :av "css" (cdr css) :av "current" (list val))
-                (clear-update-eval-aclosure c :av "instance" (car (cdr css)))))
-)
-(aclosure c :attribute "attribute prepare" :type "switch statement" :stage 'cont-case-iter  
-    :instance i 
-    :ap "cases" css 
-    :p (car css) cs 
+    :ap "cases" css
+    :ap "current" cur 
+    :ap "collected" col
+    :do (aset "analysis attributes" val)
+        (if css 
+            (progn (update-push-aclosure c :av "cases" (cdr css) :av "collected" (cons val coll))
+                (clear-update-eval-aclosure c :av "instance" (car css)))
+            (progn (update-push-aclosure c :av "stage" 'default :av "collected" (cons val coll))
+                (clear-update-eval-aclosure c :av "instance" def))))
+
+(aclosure c :attribute "attribute prepare" :type "switch statement" :stage 'default 
+    :instance i
     :value val
-    :ap "current" current 
-    :do (if css
-            (if (aget cs "break")
-                (cons-to-inner-list c (list "agent" "collector") (cons-attributes (reverse (cons val current))))
-                (progn (update-push-aclosure c :av "stage" 'cont-case-iter :av "css" (cdr css) :av "current" (cons val current))
-                    (clear-update-eval-aclosure c :av "instance" (car (cdr css)))))
-            (update-push-aclosure c :av "stage" 'default))
-)
-(aclosure c :attribute "attribute prepare" :type "switch statement" :stage 'default
-    :instance i 
-    :value val
-    :ap i "default" default
-    :ap "current" current 
-    :do (if default
-            (progn (update-push-aclosure c :av "stage" 'default-conc)
-                (clear-update-eval-aclosure c :av "instance" default))
-            (cons-to-inner-list c (list "agent" "collector") (cons-attributes (reverse current))))
-)    
-(aclosure c :attribute "attribute prepare" :type "switch statement" :stage 'default-conc
-    :instance i 
-    :value val
-    :ap "current" current 
-    :do (cons-to-inner-list c (list "agent" "collector") (cons-attributes (reverse (cons val current))))
-)
-(aclosure c :attribute "attribute prepare" :type "switch statement" :stage 'conclude
-    :instance i 
-    :agent a
-    :ap a "collector" coll
-    :p (par-attributes coll) par-attr
-    :value val
-    :do (aset a "collector" nil)
-        (aset i "analysis attributes" par-attr)
-        par-attr 
+    :ap "collected" coll
+    :p (if val val (mo "attributes")) new-val 
+    :p (cons new-val coll) par-vals
+    :p (par-attributes par-vals) par-attr
+    :do (aset i "analysis attributes" par-attr)
+        par-attr
 )
 
-
-
-(aclosure c :attribute "attributes prepare" :type "default statement" 
+(aclosure c :attribute "attribute prepare" :type "default statement" 
     :instance i 
     :ap i "statements" sts
     :do (eval-aclosure (aset (clear-aclosure c) :av "instance" sts))     
 )
 
-(aclosure c :attribute "attributes prepare" :type "case statement" 
+(aclosure c :attribute "attribute prepare" :type "case statement" 
     :instance i 
     :ap i "statements" sts
     :do (eval-aclosure (aset (clear-aclosure c) :av "instance" sts))     
 )
-(aclosure c :attribute "attributes prepare" :type "statement block" 
+(aclosure c :attribute "attribute prepare" :type "statement block" 
     :instance i 
     :ap i "statements" sts
     :do (eval-aclosure (aset (clear-aclosure c) :av "instance" sts))     
 )
 
+(aclosure c :attribute "attribute prepare" :type "for statement" :stage nil
+    :instance i
+    :ap i "statement" stm 
+    :do (update-push-aclosure c :av "stage" 'statament)
+        (clear-update-eval-aclosure c :av "instance" stm))
+
+  (aclosure c :attribute "attribute prepare" :type "for statement" :stage 'statement
+    :instance i
+    :value val
+    :p (add-par-attributes (mo "attributes") val) res
+    :do (aset i "analysis attributes" res)
+        res)      
 
 ;Declarations
 
