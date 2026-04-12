@@ -1043,8 +1043,9 @@
 (aclosure c :attribute "axsem" :type "reset time"
     :instance i 
     :agent a
+    :ap a "current process" process
     :do (aset a (aseq "cur attr" "reset") t)
-        (cons-to-inner-list a (list "cur cond") (mo "reset"))
+        (cons-to-inner-list a (list "cur cond") (mo "reset" :av "state" (mo "blank program state") :av "process" process))
 )
 (aclosure c :attribute "axsem" :type "set state"
     :instance i 
@@ -1365,7 +1366,7 @@
     :ap a "current process" process
     :ap "cnd" cnd 
     :ap i "statements" sts
-    :p (mo "ltime check" :av "state" "blank" :av "process" process  :av "compare val" cnd :av "exceed" t) new-cnd
+    :p (mo "ltime check" :av "state" (mo "blank program state") :av "process" process  :av "compare val" cnd :av "exceed" t) new-cnd
     :do (if (check-compatability c new-cnd)
             (progn (cons-to-inner-list a (aseq "cur cond") new-cnd)
                 (clear-update-eval-aclosure c :av "instance" sts))
@@ -1376,7 +1377,7 @@
     :agent a 
     :ap a "current process" process
     :ap "cnd" cnd 
-    :p (mo "ltime check" :av "state" "blank" :av "process" process  :av "compare val" cnd :av "exceed" nil) new-cnd 
+    :p (mo "ltime check" :av "state" (mo "blank program state") :av "process" process  :av "compare val" cnd :av "exceed" nil) new-cnd 
     :do (if (check-compatability c new-cnd)
             (cons-to-inner-list a (aseq "cur cond") new-cnd)
             (delete-agent-aclosures c))
@@ -1588,7 +1589,7 @@
     :do (if rst 
             (let* ((cur-state (car rst))
                     (pstate-name (aget cur-state "name"))
-                    (new-pstate (mo "pstate compare" :av "stage" "blank" :av "process" name :av "pstate" pstate-name)))
+                    (new-pstate (mo "pstate compare" :av "state" (mo "blank program state") :av "process" name :av "pstate" pstate-name)))
                 (update-push-aclosure c :av "rest" (cdr rst))
                 (if (check-compatability c new-pstate)
                     (let ((new-agent (iclone-agent env a)))
@@ -1601,7 +1602,7 @@
     :ap i "name" name
     :env env 
     :ap "clear agent" a 
-    :p (mo "pstate compare" :av "stage" "blank" :av "process" name :av "pstate" "stop") new-pstate 
+    :p (mo "pstate compare" :av "state" (mo "blank program state") :av "process" name :av "pstate" "stop") new-pstate 
     :do (if (check-compatability c new-pstate)
             (let ((new-agent (iclone-agent env a)))
                 (cons-to-inner-list new-agent (list "cur-cond") new-pstate)))
@@ -1612,7 +1613,7 @@
     :ap i "name" name
     :env env 
     :ap "clear agent" a 
-    :p (mo "pstate compare" :av "stage" "blank" :av "process" name :av "pstate" "error") new-pstate
+    :p (mo "pstate compare" :av "state" (mo "blank program state") :av "process" name :av "pstate" "error") new-pstate
     :do (if (check-compatability c new-pstate)
             (cons-to-inner-list a (list "cur-cond") new-pstate)
             (delete-agent-aclosures a))
@@ -1631,7 +1632,7 @@
             (let* ((name (aget (car input) "name"))
                     (var-type (aget env (aseq "variable type" "name"))))
                 (update-push-aclosure c (cdr input))
-                (cons-to-inner-list a "cur cond" (mo "value setter" :av "type" var-type :av "state" "blank" :av "name" name :av "value" name))
+                (cons-to-inner-list a "cur cond" (mo "value setter" :av "type" var-type :av "state" (mo "blank program state") :av "name" name :av "value" name))
             )
             (update-push-aclosure c :av "stage" 'work :av "procs" (aget i "processes")))
 )
@@ -1957,7 +1958,7 @@
     :value val 
     :ap i "name" name
     :p (mo "variable access" :av "name" name) access 
-    :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" "blank" :av "access" access :av "value" val) setter
+    :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" (mo "blank program state") :av "access" access :av "value" val) setter
     :do (clear-agent-expr a)
         (cons-to-inner-list c (aseq "cur cond") setter)
 )
@@ -1978,7 +1979,7 @@
     :agent a 
     :value val 
     :p (mo "variable access" :av "name" name) access 
-    :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" "blank" :av "access" access :av "value" val) setter
+    :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" (mo "blank program state") :av "access" access :av "value" val) setter
     :do setter
 )
 (aclosure c :attribute "axsem init" :type "array init" :stage nil 
@@ -2013,7 +2014,7 @@
     :agent a 
     :value val 
     :p (mo "variable access" :av "name" name) access 
-    :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" "blank" :av "access" access :av "value" val) setter
+    :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" (mo "blank program state") :av "access" access :av "value" val) setter
     :do setter
 )
 (aclosure c :attribute "axsem init" :type "structure init" :stage nil
@@ -2040,7 +2041,7 @@
     :ap i "name" name 
     :env env 
     :p (mo "variable access" :av "name" name) access
-    :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" "blank" :av "access" :av "access" access :av "value" (aget env (aseq "variable init" name))) setter
+    :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" (mo "blank program state") :av "access" :av "access" access :av "value" (aget env (aseq "variable init" name))) setter
     :do (cons-to-inner-list c (aseq "cur cond") setter)
 )
 

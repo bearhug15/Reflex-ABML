@@ -329,22 +329,22 @@
     :ap "res" res
     :do (let *((act-val (act val a))
                 (var (nth act-val vals)))
-            (if (and (<= 0 act-val) (< act-val (get-array-size env name (reverse coll))))
+            (if (and (<= 0 act-val) (< act-val (length vals)))
                 (if rst 
                     (update-push-aclosure c :av "stage" 'access :av "current" (car rest) :av "rest" (cdr rest) :av "values" var :av "collected" (cons act-val coll))
                     (progn (aset a (aseql (cons "variable value" (reverse (cons act-val coll)))) res)
                         res))
                 (make-error env a "Array index out of bounds"))))
 
-(typedef "compaund assignment" (uniont "+=" "*=" "-=" "<<=" ">>=" "|=" "&=" "^="))
+(typedef "compound assignment" (uniont "+=" "*=" "-=" "<<=" ">>=" "|=" "&=" "^="))
 
-(aclosure c :attribute "opsem" :type "compaund assignment" :stage nil
+(aclosure c :attribute "opsem" :type "compound assignment" :stage nil
     :instance i 
     :ap i "right" right
     :do (progn (update-push-aclosure c :av "stage" 'right)
             (clear-update-eval-aclosure c "instance" right))
 )
-(aclosure c :attribute "opsem" :type "compaund assignment" :stage 'right
+(aclosure c :attribute "opsem" :type "compound assignment" :stage 'right
     :instance i 
     :agent a 
     :value val
@@ -358,7 +358,7 @@
                     (aset a (aseq "variable name" name) (act val a))
                     (iobj "lvalue" :av name))))
 )
-(aclosure c :attribute "opsem" :type "compaund assignment" :stage 'access
+(aclosure c :attribute "opsem" :type "compound assignment" :stage 'access
     :instance i 
     :agent a 
     :value val
@@ -378,7 +378,7 @@
         (update-push-aclosure c :av "stage" 'access-act)
         (clear-update-eval-aclosure c :av "instance" cur))
 )
-(aclosure c :attribute "opsem" :type "compaund assignment" :stage 'access-act
+(aclosure c :attribute "opsem" :type "compound assignment" :stage 'access-act
     :instance i 
     :agent a 
     :value val
@@ -388,7 +388,7 @@
     :ap "collected" coll 
     :do (let ((act-val (act val a))
                 (var (nth act-val vals)))
-            (if (and (<= 0 act-val) (< act-val (get-array-size env name (reverse coll))))
+            (if (and (<= 0 act-val) (< act-val (length vals)))
                 (if rest 
                     (update-push-aclosure c :av "stage" 'access :av "current" (car rst) :av "rest" (cdr rst) :av "values" var :av "collected" (cons act-val coll))
                     (progn (aset a (aseql (cons "variable value" (reverse (cons act-val coll)))) (def-comp-assign i var res))

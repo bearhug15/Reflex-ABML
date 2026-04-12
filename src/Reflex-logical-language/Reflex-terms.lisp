@@ -2,7 +2,7 @@
   (:use #:cl))
 (in-package #:Reflex-semantics)
 
-(typedef "program state name" (enumt symbol))
+(mot "blank program state")
 (typedef "outer var" (enumt "name"))
 (typedef "term" (uniont "actualizable term" "nonactualizable term"))
 (typedef "actualizable term" (uniont "binary operation" "unary operation" "value getter"  "cast operation"))
@@ -57,7 +57,7 @@
     :at "right" "term")
 (mot "conjunction" :at "formulas" (listt "formula"))
 (mot "disjunction" :at "formulas" (listt "formula"))
-(mot "process activity" :at "state" "program state" :av "process" "process name" :av "activity" (uniont 'active 'stop 'error 'inactive 'nonstop 'nonerror))
+(mot "process activity" :at "state" "program state" :at "process" "process name" :at "activity" (uniont 'active 'stop 'error 'inactive 'nonstop 'nonerror))
 (mot "process activity block" (uniont (listt "process activity")))
 (mot "arg name" (enumt string))
 (mot "forall" 
@@ -71,13 +71,13 @@
     :at "process" "process name"
     :at "compare val" "term" 
     :at "exceed" bool)
-(mot "inv plug" :av "num" int)
+(mot "inv plug" :at "num" int)
 (mot "state notupdating formula" (uniont "forall" "exists" "ltime check" "term" "implication" "inv plug" "conjunction" "disjunction" "process activity" "process activity block"))
 
-(mot "program state" (uniont "program state name" "value setter"))
+(mot "program state" (uniont "blank program state" "value setter"))
 (mot "reset" :at "state" "program state")
 (mot "to env" :at "state" "program state")
-(mot "pstate setter" :at "state" "program state" :av "process" "process name" :av "pstate" "state name")
+(mot "pstate setter" :at "state" "program state" :at "process" "process name" :at "pstate" "state name")
 (mot "state updating formula" (uniont "program state" "pstate setter" "reset" "to env"))
 
 (mot "formula" (uniont "state notupdating formula" "state updating formula"))
@@ -90,13 +90,13 @@
 
 
 ;В работе
-(mot "constructor field" :av "name" "name" :av "type" "name")
-(mot "datatype constructor" :av "name" "name" :av "fields" (listt "constructor field"))
-(mot "datatype" :av "name" "name" :av (listt "datatype constructor"))
+(mot "constructor field" :at "name" "name" :at "type" "name")
+(mot "datatype constructor" :at "name" "name" :at "fields" (listt "constructor field"))
+(mot "datatype" :at "name" "name" :at (listt "datatype constructor"))
 
 (mot "signature element" (uniont "name" "signature"))
-(mot "signature" :av "input" (listt "signature element") :av "output" "signature element" )
-(mot "list unfold" :av "args" (listt "name") :av "rest" "name")
+(mot "signature" :at "input" (listt "signature element") :at "output" "signature element" )
+(mot "list unfold" :at "args" (listt "name") :at "rest" "name")
 (mot "function argument" (uniont "name" "list unfold"))
-(mot "function branch" :av "args" (listt "function argument") :av "formula" "formula")
-(mot "function" :av "name" "name" :av "signature" "signature" :av "branches" (listt "function branch"))
+(mot "function branch" :at "args" (listt "function argument") :at "formula" "formula")
+(mot "function" :at "name" "name" :at "signature" "signature" :at "branches" (listt "function branch"))

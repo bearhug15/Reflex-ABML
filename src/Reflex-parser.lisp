@@ -984,8 +984,6 @@
     (mo "enum declaration"
         :av "fields" (nreverse fields))))
 
-
-
 (defun parse-reflex-program-from-string (source)
   (let ((lexer (make-lexer source)))
     (parse-program lexer)))

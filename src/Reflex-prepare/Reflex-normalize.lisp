@@ -150,7 +150,7 @@
     :ap i "statements" sts 
     :do (aset a "current state" name)
         (aset a "next state" (next-process-state a env))
-        (update-push-aclosure c :av "stage" 'fstate :av "states" (break-into-states-sub sts))
+        (update-push-aclosure c :av "stage" 'fstate :av "states" (break-into-states sts))
 )
 (aclosure c :attribute "normalize program" :type "state declaration" :stage 'fstate 
     :instance i
