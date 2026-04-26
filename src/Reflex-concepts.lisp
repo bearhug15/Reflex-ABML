@@ -11,12 +11,7 @@
 (typedef "natural constant" (enumt nat))
 (typedef "float constant" (enumt real))
 
-(mot "days" :at "value" nat)
-(mot "hours" :at "value" nat)
-(mot "minutes" :at "value" nat)
-(mot "seconds" :at "value" nat)
-(mot "milliseconds" :at "value" nat)
-(mot "time constant" :at "d" "days" :at "h" "hours" :at "m" "minutes" :at "s" "seconds" :at "ms" "milliseconds")
+(mot "time constant" :at "d" nat :at "h" nat :at "m" nat :at "s" nat :at "ms" nat)
 
 (typedef "non time constant" (uniont "bool constant" "integer constant" "natural constant" 
   "float constant" "boolean constant"))
@@ -107,6 +102,8 @@
 (typedef "prefix&postfix" (uniont "++." ".++" "--." ".--"))
 (typedef "assignment expression" (uniont "=" "+=" "-=" "*=" "/=" "%" "<<=" ">>=" "&=" "|=" "^="))
 
+(mot "function call" :av "name" "name" :av "args" (listt "expression"))
+
 (typedef "expression" (uniont "binary expression" "unary expression" "prefix&postfix" "assignment expression" "element access" "process state checking" "constant"))
 
 ;Statements
@@ -181,6 +178,8 @@
 (typedef "reflex init" (uniont "simple init" "array init" "struct init" "enum element access"))
 
 (typedef "process variable declaration" (uniont "statement variable declaration" "physical variable declaration"))
+
+(mot "function declaration" :av "name" "name" :av "args" (listt "name") :av "body" (listt "statement"))
 
 (mot "process declaration" 
     :at "name" "process name"

@@ -81,11 +81,31 @@
   ;; формат: 0t...
   (advance lx) ;; 0
   (advance lx) ;; t
-  (let ((start (lexer-pos lx)))
-    (loop while (and (current-char lx)
-                     (digit-char-p (current-char lx)))
-          do (advance lx))
-    (subseq (lexer-source lx) start (lexer-pos lx))))
+  (let ((d 0) (h 0) (m 0) (s 0) (ms 0))
+    (loop while (digit-char-p (current-char lx))
+          do
+            (let ((num (read-number lx)))
+              (let ((unit
+                     (cond
+                       ((match-string lx "ms") (advance lx) (advance lx) :ms)
+                       ((char= (current-char lx) #\d) (advance lx) :d)
+                       ((char= (current-char lx) #\h) (advance lx) :h)
+                       ((char= (current-char lx) #\m) (advance lx) :m)
+                       ((char= (current-char lx) #\s) (advance lx) :s)
+                       (t (error "Invalid time unit")))))
+                (case unit
+                  (:d (setf d num))
+                  (:h (setf h num))
+                  (:m (setf m num))
+                  (:s (setf s num))
+                  (:ms (setf ms num))))))
+    (mo "time constant"
+        :av "d" d
+        :av "h" h
+        :av "m" m
+        :av "s" s
+        :av "ms" ms))
+)
 
 (defun read-symbol (lx)
   (dolist (s *multi-symbols*)
@@ -197,30 +217,48 @@
      tok))
 
 (defun parse-program (lexer)
-  (let ((ports '())
-        (decls '())
-        (nodes '())
-        (processes '())
-        (prog-name "program"))
-    (loop
-      for tok = (peek-token lexer)
-      until (eq (token-type tok) :eof)
-      do
-        (case (token-type tok)
-          (:keyword
-           (case (intern (string-upcase (token-value tok)) :keyword)
-             (:NODE (push (parse-node lexer) nodes))
-             (:PROCESS (push (parse-process lexer) processes))
-             (:ENUM (push (parse-enum lexer) decls))
-             (:CONST (push (parse-const-decl lexer) decls))
-             (t (error "Unexpected top-level keyword ~A"
-                       (token-value tok)))))
-          (t (error "Unexpected token at top level"))))
-    (mo "program declaration"
-        :av "name" prog-name
-        :av "nodes" (nreverse nodes)
-        :av "declarations" (nreverse decls)
-        :av "processes" (nreverse processes))))
+  ;; program <name> {
+  (expect lexer :keyword "program")
+  (let ((prog-name (token-value (expect lexer :id))))
+    (expect lexer :symbol "{")
+    ;;clock
+    (expect lexer :keyword "clock")
+    (let ((clock (parse-clock lexer)))
+      (expect lexer :symbol ";")
+      ;; --- аккумуляторы ---
+      (let ((nodes '())
+            (processes '())
+            (decls '()))
+        (loop
+          until (symbol-is (peek-token lexer) "}")
+          do
+            (let ((tok (peek-token lexer)))
+              (cond
+                ((keyword-is tok "node")
+                 (push (parse-node lexer) nodes))
+                ((or (keyword-is tok "process")
+                     (keyword-is tok "active"))
+                 (push (parse-process lexer) processes))
+                ((keyword-is tok "enum")
+                 (push (parse-enum lexer) decls))
+                ((keyword-is tok "const")
+                 (push (parse-const-decl lexer) decls))
+                ((member (token-value tok)
+                         '("register" "vector" "bit" "ISR" "import")
+                         :test #'string=)
+                 (error "Unsupported construct in this parser: ~A"
+                        (token-value tok)))
+                (t
+                 (error "Unexpected token in program: ~A"
+                        tok)))))
+        ;;}
+        (expect lexer :symbol "}")
+        (mo "program declaration"
+            :av "name" prog-name
+            :av "clock" clock
+            :av "nodes" (nreverse nodes)
+            :av "declarations" (nreverse decls)
+            :av "processes" (nreverse processes))))))
 
 (defun parse-node (lexer)
   (expect lexer :keyword "node")
@@ -357,7 +395,9 @@
 
 (defun parse-wait (lexer)
   (expect lexer :keyword "wait")
+  (expect lexer :symbol "(")
   (let ((cond-expr (parse-expression lexer)))
+    (expect lexer :symbol ")")
     (if (keyword-is (peek-token lexer) "on")
         (progn
           (expect lexer :keyword "on")
@@ -365,7 +405,7 @@
           (expect lexer :symbol "(")
           (let ((time-expr (parse-time-or-ref lexer)))
             (expect lexer :symbol ")")
-            (let ((stmts (parse-statement-block lexer)))
+            (let ((stmts (parse-statement lexer)))
               (mo "wait on timeout"
                   :av "condition" cond-expr
                   :av "controlling expression" time-expr
@@ -379,7 +419,7 @@
   (expect lexer :symbol "(")
   (let ((tval (parse-time-or-ref lexer)))
     (expect lexer :symbol ")")
-    (let ((stmts (parse-statement-block lexer)))
+    (let ((stmts (parse-statement lexer)))
       (mo "timeout statement"
           :av "controlling expression" tval
           :av "statements" stmts))))
@@ -502,11 +542,19 @@
 
 (defun parse-set (lexer)
   (expect lexer :keyword "set")
-  (expect lexer :keyword "state")
-  (let ((name (token-value (expect lexer :id))))
-    (expect lexer :symbol ";")
-    (mo "set state"
-        :av "state" name)))
+  (if (keyword-is (peek-token lexer) "next")
+    (progn
+      (next-token lexer)
+      (expect lexer :keyword "state")
+      (expect lexer :symbol ";")
+      (mo "set state" :av "state" nil))
+    (progn
+      (expect lexer :keyword "state")
+      (let ((name (token-value (expect lexer :id))))
+        (expect lexer :symbol ";")
+        (mo "set state"
+            :av "state" name))))
+)
 
 (defun parse-start-process (lexer)
   (expect lexer :keyword "start")
@@ -526,8 +574,6 @@
           (mo "stop process"
               :av "process" name)))
       (progn
-        (expect lexer :keyword "current")
-        (expect lexer :keyword "process")
         (expect lexer :symbol ";")
         (mo "stop current process"))))
 
@@ -541,8 +587,6 @@
           (mo "error process"
               :av "process" name)))
       (progn
-        (expect lexer :keyword "current")
-        (expect lexer :keyword "process")
         (expect lexer :symbol ";")
         (mo "error current process"))))
 
@@ -708,8 +752,10 @@
        (mo "integer constant" (token-value tok)))
       (:time
        (mo "time constant" :av "ms" (token-value tok)))
-      (:string
-       (mo "string constant" (token-value tok)))
+      (:bool
+        (mo "bool constant" (if value 'true 'false)))
+      ;(:string
+       ;(mo "string constant" (token-value tok)))
       (t
        (error "Not a constant")))))
 
@@ -738,13 +784,7 @@
 
 (defun parse-simple-type (lexer)
   (let ((name (token-value (expect lexer :id))))
-    (mo (cond
-          ((member name '("bool") :test #'string=) "boolean type")
-          ((member name '("float" "double") :test #'string=) "float type")
-          ((string= name "time") "time type")
-          ((char= (char name 0) #\u) "natural type")
-          (t "integer type"))
-        name)))
+    (intern name)))
 
 (defun type-decl-start-p (tok)
   (simple-type-start-p tok))
@@ -966,23 +1006,35 @@
 
 (defun parse-enum (lexer)
   (expect lexer :keyword "enum")
-  (let ((fields '()))
+  (let ((enum-name (token-value (expect lexer :id))))
     (expect lexer :symbol "{")
-    (loop
-      until (symbol-is (peek-token lexer) "}")
-      do
-        (let ((name (token-value (expect lexer :id))))
-          (expect lexer :symbol "=")
-          (let ((value (token-value (expect lexer :int))))
-            (expect lexer :symbol ";")
-            (push (mo "enum field"
-                      :av "name" name
-                      :av "value" value)
-                  fields))))
-    (expect lexer :symbol "}")
-    (expect lexer :symbol ";")
-    (mo "enum declaration"
-        :av "fields" (nreverse fields))))
+    (let ((fields '()))
+      (unless (symbol-is (peek-token lexer) "}")
+        (loop
+          do
+             (let ((name (token-value (expect lexer :id)))
+                   (value nil))
+               (when (symbol-is (peek-token lexer) "=")
+                 (next-token lexer)
+                 (setf value (parse-expression lexer)))
+               (push (mo "enum field"
+                         :av "name" name
+                         :av "value" value)
+                     fields))
+             (cond
+               ((symbol-is (peek-token lexer) ",")
+                (next-token lexer)
+                )
+               ((symbol-is (peek-token lexer) "}"))
+               (t
+                (error "Expected ',' or '}' in enum declaration")))
+
+          until (symbol-is (peek-token lexer) "}")))
+      (expect lexer :symbol "}")
+      (expect lexer :symbol ";")
+      (mo "enum declaration"
+          :av "name" enum-name
+          :av "fields" (nreverse fields)))))
 
 (defun parse-reflex-program-from-string (source)
   (let ((lexer (make-lexer source)))

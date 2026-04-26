@@ -1058,24 +1058,29 @@ x[--y]/=y;
 
 ;opsem decl
 
-(aclosure c :attribute "opsem decl" :type "constant declaration"
+(aclosure c :attribute "opsem decl" :type "constant declaration" :stage nil 
     :instance i 
-    :do 
-    (match :av c "stage" nil :ap i "expression" expr :do 
-        (update-push-aclosure c :av "stage" 'val)
-        (clear-update-eval-aclosure c :av "instance" expr))
-    (match :av c "stage" 'val :ap i "name" name :ap c "env" con
-        :ap c "agent" a :ap a "value" val :do 
-        (aset a (aseq "variable value" name) val)))
+    :ap i "expression" expr 
+    :do (update-push-aclosure c :av "stage" 'val)
+        (clear-update-eval-aclosure c :av "instance" expr)
+)
+(aclosure c :attribute "opsem decl" :type "constant declaration" :stage 'val 
+    :instance i 
+    :ap i "name" name :ap c "env" con
+    :ap c "agent" a :ap a "value" val 
+    :do (aset a (aseq "variable value" name) val)
+)
         
-(aclosure c :attribute "opsem decl" :type "simple variable declaration" 
+(aclosure c :attribute "opsem decl" :type "simple variable declaration" :stage nil
     :instance i 
-    :do 
-    (match :av c "stage" nil :ap i "init" init :ap i "type" rtype :ap c "env" env :do 
-        (update-push-aclosure c :av "stage" 'first :av "init" (if init init (type-default-val env rtype))))
-    (match :av c "stage" 'first :ap i "name" name :ap c "init" init :ap c "env" env :ap i "type" rtype :do 
-        (aset env (aseq "variable init" name) init)
-        (aset env (aseq "variable type" name) rtype))                    
+    :ap i "init" init :ap i "type" rtype :ap c "env" env 
+    :do (update-push-aclosure c :av "stage" 'first :av "init" (if init init (type-default-val env rtype)))
+)
+(aclosure c :attribute "opsem decl" :type "simple variable declaration" :stage nil
+    :instance i    
+    :ap i "name" name :ap c "init" init :ap c "env" env :ap i "type" rtype 
+    :do (aset env (aseq "variable init" name) init)
+        (aset env (aseq "variable type" name) rtype)                  
 )
 
 (aclosure c :attribute "opsem decl" :type "array variable declaration"
@@ -1127,7 +1132,7 @@ x[--y]/=y;
     :do (aset env (aseq "variable type" name) rtype)
         (if init 
             (aset env (aseq "variable init" name) init)
-            (aset env (aseq "variable init" name) (type-default-val env rtype)))
+            (aset env (aseq "variable init" name) (mo "struct init")))
 )
 
 (aclosure c :attribute "opsem decl" :type "enum declaration"
@@ -1214,10 +1219,10 @@ x[--y]/=y;
     :agent a
     :do (aset a (aseq "variable value" name) val)
 )
+
 (aclosure c :attribute "opsem init" :type "simple init" :stage nil 
     :instance i 
     :do (clear-update-eval-aclosure c :av "attribute" "opsem" :av "instance" i))
-
 
 (aclosure c :attribute "opsem init" :type "array variable declaration" :stage nil
     :instance i 
@@ -1252,9 +1257,12 @@ x[--y]/=y;
 (aclosure c :attribute "opsem init" :type "structure variable declaration" :stage nil
     :instance i
     :ap i "name" name 
+    :ap i "type" ty
     :env env  
     :do (update-push-aclosure c :av "stage" 'init)
-        (clear-update-eval-aclosure c :av "instance" (aget env (aseq "variable init" name)))
+        (clear-update-eval-aclosure c :av "instance" (aget env (aseq "variable init" name)) 
+            :av "result" (type-default-val env ty) 
+            :av "struct type" ty)
 )
 (aclosure c :attribute "opsem init" :type "structure variable declaration" :stage 'init
     :instance i
@@ -1264,23 +1272,56 @@ x[--y]/=y;
     :value val 
     :do (aset a (aseq "variable value" name) val)
 )
-(aclosure c :attribute "opsem init" :type "structure init" :stage nil
-    :instance i 
-    :p (attributes i) fields
-    :do (update-push-aclosure c :av "stage" 'fields :av "fields" (cdr fields) :av "collected" (cot "struct init") :av "current name" (car fields))
-        (clear-update-eval-aclosure c :av "instance" (aget i (car fields)))
+
+(aclosure c :attribute "opsem init" :type "struct init" :stage nil
+    :instance i
+    :agent a
+    :ap i "struct name" sname
+    :ap i "fields" fields
+    :env env
+    :p (aget env (aseq "struct fields" sname)) fnames
+    :do 
+        (update-push-aclosure c 
+            :av "stage" 'override 
+            :av "fnames" fnames 
+            :av "fields" fields
+            :av "last idx" -1)
+        (clear-update-eval-aclosure c :av "instance" (car fields))
 )
-(aclosure c :attribute "opsem init" :type "structure init" :stage 'fields
-    :instance i 
-    :ap "collected" col
+(aclosure c :attribute "opsem init" :type "struct init" :stage 'override
+    :instance i
+    :agent a
+    :env env
     :ap "fields" fields
-    :ap "current name" name
+    :ap "result" res
+    :ap "last idx" lidx
     :value val
-    :do (if fields
-            (progn (update-push-aclosure c :av "stage" 'fields :av "fields" (cdr fields) :av "collected" (aset col name val) :av "current name" (car fields))
-                (clear-update-eval-aclosure c :av "instance" (aget i (car fields))))
-            col)
+    :p (car fields) field
+    :p (aget field "name") fname
+    :p (aget env (aseq "struct fields" sname)) fnames
+    :do (if (> (length fields) 1)
+            (progn
+                (if fname 
+                    (progn (aset res fname val)
+                        (update-push-aclosure c 
+                            :av "fields" (cdr fields)
+                            :av "last idx" (position fname fnames :test #'string=))
+                        (clear-update-eval-aclosure c :instance (car (cdr fields))))
+                    (progn (aset res (nth (+ lidx 1) fnames) val)
+                        (update-push-aclosure c 
+                            :av "fields" (cdr fields)
+                            :av "last idx" (+ lidx 1))
+                        (clear-update-eval-aclosure c :instance (car (cdr fields))))
+                ))
+            (progn
+                (if fname 
+                    (progn (aset res fname val)
+                        res)
+                    (progn (aset res (nth (+ lidx 1) fnames) val)
+                        res)
+                )))
 )
+
 
 (aclosure c :attribute "opsem init" :type "enum variable declaration" :stage nil
     :instance i 

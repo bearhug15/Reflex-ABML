@@ -1040,6 +1040,10 @@
 (defun update-attributes (agent new-attributes)
     (aset agent "cur attr" (add-cons-attributes (aget agent "cur attr") new-attributes)))
 
+(aclosure c :attribute "axsem" :type "statement variable declaration" :stage nil 
+    :instance i
+    :do (clear-update-eval-aclosure c :av "attribute" "axsem init"))
+
 (aclosure c :attribute "axsem" :type "reset time"
     :instance i 
     :agent a
@@ -1960,7 +1964,7 @@
     :p (mo "variable access" :av "name" name) access 
     :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" (mo "blank program state") :av "access" access :av "value" val) setter
     :do (clear-agent-expr a)
-        (cons-to-inner-list c (aseq "cur cond") setter)
+        (cons-to-inner-list env (list "cur cond") setter)
 )
 
 (aclosure c :attribute "axsem init" :type "array variable declaration" :stage nil
@@ -1980,7 +1984,8 @@
     :value val 
     :p (mo "variable access" :av "name" name) access 
     :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" (mo "blank program state") :av "access" access :av "value" val) setter
-    :do setter
+    :do (clear-agent-expr a)
+        (cons-to-inner-list env (list "cur cond") setter)
 )
 (aclosure c :attribute "axsem init" :type "array init" :stage nil 
     :instance i 
@@ -2003,8 +2008,8 @@
     :ap i "name" name 
     :env env  
     :do (update-push-aclosure c :av "stage" 'init)
-        (if (aget env (aseq "variable init" name)) 
-                (clear-update-eval-aclosure c :av "instance" i :av "attribute" "axsem decl"))
+        ;(if (aget env (aseq "variable init" name)) 
+        ;        (clear-update-eval-aclosure c :av "instance" i :av "attribute" "axsem decl"))
         (clear-update-eval-aclosure c :av "instance" (aget env (aseq "variable init" name)))
 )
 (aclosure c :attribute "axsem init" :type "structure variable declaration" :stage 'init
@@ -2015,26 +2020,58 @@
     :value val 
     :p (mo "variable access" :av "name" name) access 
     :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" (mo "blank program state") :av "access" access :av "value" val) setter
-    :do setter
-)
-(aclosure c :attribute "axsem init" :type "structure init" :stage nil
-    :instance i 
-    :p (attributes i) fields
-    :do (update-push-aclosure c :av "stage" 'fields :av "fields" (cdr fields) :av "collected" (cot "struct init") :av "current name" (car fields))
-        (clear-update-eval-aclosure c :av "instance" (aget i (car fields)))
-)
-(aclosure c :attribute "axsem init" :type "structure init" :stage 'fields
-    :instance i 
-    :ap "collected" col
-    :ap "fields" fields
-    :ap "current name" name
-    :value val
-    :do (if fields
-            (progn (update-push-aclosure c :av "stage" 'fields :av "fields" (cdr fields) :av "collected" (aset col name val) :av "current name" (car fields))
-                (clear-update-eval-aclosure c :av "instance" (aget i (car fields))))
-            col)
+    :do (clear-agent-expr a)
+        (cons-to-inner-list env (list "cur cond") setter)
 )
 
+(aclosure c :attribute "axsem init" :type "struct init" :stage nil
+    :instance i
+    :agent a
+    :ap i "struct name" sname
+    :ap i "fields" fields
+    :env env
+    :p (aget env (aseq "struct fields" sname)) fnames
+    :do 
+        (update-push-aclosure c 
+            :av "stage" 'override 
+            :av "fnames" fnames 
+            :av "fields" fields
+            :av "last idx" -1)
+        (clear-update-eval-aclosure c :av "instance" (car fields))
+)
+(aclosure c :attribute "axsem init" :type "struct init" :stage 'override
+    :instance i
+    :agent a
+    :env env
+    :ap "fields" fields
+    :ap "result" res
+    :ap "last idx" lidx
+    :value val
+    :p (car fields) field
+    :p (aget field "name") fname
+    :p (aget env (aseq "struct fields" sname)) fnames
+    :do (if (> (length fields) 1)
+            (progn
+                (if fname 
+                    (progn (aset res fname val)
+                        (update-push-aclosure c 
+                            :av "fields" (cdr fields)
+                            :av "last idx" (position fname fnames :test #'string=))
+                        (clear-update-eval-aclosure c :instance (car (cdr fields))))
+                    (progn (aset res (nth (+ lidx 1) fnames) val)
+                        (update-push-aclosure c 
+                            :av "fields" (cdr fields)
+                            :av "last idx" (+ lidx 1))
+                        (clear-update-eval-aclosure c :instance (car (cdr fields))))
+                ))
+            (progn
+                (if fname 
+                    (progn (aset res fname val)
+                        res)
+                    (progn (aset res (nth (+ lidx 1) fnames) val)
+                        res)
+                )))
+)
 
 (aclosure c :attribute "axsem init" :type "enum variable declaration"
     :instance i 
@@ -2042,7 +2079,7 @@
     :env env 
     :p (mo "variable access" :av "name" name) access
     :p (mo "value setter" :av "type" (aget env (aseq "variable type" name)) :av "state" (mo "blank program state") :av "access" :av "access" access :av "value" (aget env (aseq "variable init" name))) setter
-    :do (cons-to-inner-list c (aseq "cur cond") setter)
+    :do (cons-to-inner-list env (list "cur cond") setter)
 )
 
 (aclosure c :attribute "axsem init" :type "process declaration" :stage nil 
