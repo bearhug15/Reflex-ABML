@@ -53,8 +53,8 @@
     :at "pstate" "state name")
 
 (mot "implication" 
-    :at "left" "term" 
-    :at "right" "term")
+    :at "left" "formula" 
+    :at "right" "formula")
 (mot "conjunction" :at "formulas" (listt "formula"))
 (mot "disjunction" :at "formulas" (listt "formula"))
 (mot "process activity" :at "state" "program state" :at "process" "process name" :at "activity" (uniont 'active 'stop 'error 'inactive 'nonstop 'nonerror))
@@ -74,7 +74,7 @@
 (mot "inv plug" :at "num" int)
 (mot "state notupdating formula" (uniont "forall" "exists" "ltime check" "term" "implication" "inv plug" "conjunction" "disjunction" "process activity" "process activity block"))
 
-(mot "program state" (uniont "blank program state" "value setter"))
+(typedef "program state" (uniont "blank program state" "value setter"))
 (mot "reset" :at "state" "program state")
 (mot "to env" :at "state" "program state")
 (mot "pstate setter" :at "state" "program state" :at "process" "process name" :at "pstate" "state name")
@@ -85,7 +85,6 @@
     :at "precondition" "formula" 
     :at "postcondition" "formula" 
     :at "steps" (listt "formula"))
-
 
 
 

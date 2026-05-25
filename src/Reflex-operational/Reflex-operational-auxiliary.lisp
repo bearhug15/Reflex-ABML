@@ -90,9 +90,10 @@
             ((= "^" ty) (logxor left right)))))
 
 
-(defun def-comp-assign (op left right)
+(defun def-com-assign (op left right)
     (let ((ty (otype op)))
         (cond 
+            ((= "=" ty) right)
             ((= "+=" ty) (+ left right))
             ((= "-=" ty) (- left right))
             ((= "*=" ty) (* left right))

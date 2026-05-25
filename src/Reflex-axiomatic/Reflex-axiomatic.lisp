@@ -131,7 +131,7 @@
                     (* (+ (if (hours) hours 0)
                         (* (if (days) days 0) 24)) 60)) 60)) 1000))))
 
-(aclosure c :attribute "axsem" :type "non time constant"
+(aclosure c :attribute "axsem" :type "number constant"
     :instance i 
     :do i)
 

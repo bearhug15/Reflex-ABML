@@ -2,7 +2,9 @@
   :version "0.0.1"
   :author ""
   :license ""
-  :depends-on (:cl-smt-lib)
+  :depends-on (#:cl-smt-lib
+                #:cl-lex
+               #:cl-yacc)
   :components ((:module "src"
                 :components
                 ((:file "ABML-plugs")

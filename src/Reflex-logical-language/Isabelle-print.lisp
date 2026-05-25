@@ -501,26 +501,27 @@
     :do (format nil "(setPstate ~a ~a ~a)" state process pstate))
 
 (mot "inv plug" :at "num" int)
-(mot "state notupdating formula" (uniont "forall" "exists" "ltime check" "term" "implication" "inv plug" "conjunction" "disjunction" "process activity" "process activity block"))
 
-(mot "state updating formula" (uniont "program state" "pstate setter" "reset" "to env"))
+;(mot "state notupdating formula" (uniont "forall" "exists" "ltime check" "term" "implication" "inv plug" "conjunction" "disjunction" "process activity" "process activity block"))
 
-(mot "formula" (uniont "state notupdating formula" "state updating formula"))
+;(mot "state updating formula" (uniont "program state" "pstate setter" "reset" "to env"))
 
-(aclosure c :attribute "print" :type "va lemma" :stage nil 
+;(mot "formula" (uniont "state notupdating formula" "state updating formula"))
+
+(aclosure c :attribute "print" :type "vc lemma" :stage nil 
     :instance i 
     :ap i "precondition" precondition
     :do (clear-update-push-aclosure c :av "stage" 'precondition)
         (clear-update-eval-aclosure c :av "instance" precondition))
 
-(aclosure c :attribute "print" :type "va lemma" :stage 'precondition 
+(aclosure c :attribute "print" :type "vc lemma" :stage 'precondition 
     :instance i 
     :ap i "steps" steps
     :value precondition
     :do (clear-update-push-aclosure c :av "stage" 'steps :av "precondition" precondition :av "current" (car steps) :av "rest" (cdr steps))
         (clear-update-eval-aclosure c :av "instance" (car steps)))
 
-(aclosure c :attribute "print" :type "va lemma" :stage 'steps
+(aclosure c :attribute "print" :type "vc lemma" :stage 'steps
     :ap "steps" steps 
     :ap "current" cur
     :value val
